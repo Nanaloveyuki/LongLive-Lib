@@ -74,13 +74,11 @@ The probe now also exercises a small battle-oriented numeric helper:
 
 This keeps the prototype closer to the actual game domain without prematurely turning the native layer into a full battle simulator.
 
-For the earliest in-game validation stage, the native layer is still kept out of the main-menu diagnostics popup itself.
+The host now also has an optional native probe path.
 
-That popup is currently meant to validate:
+- `EnableNativeProbe` defaults to `false`
+- `NativeLibraryPath` can point to an explicit `longlive_native_core.dll`
+- when enabled, the host performs a narrow `DllImport` probe during bootstrap
+- the current result is surfaced through the `LongLive Diagnostics` popup
 
-- plugin load
-- visible UI entry installation
-- Next runtime visibility
-- content inspection availability
-
-The native layer remains verified out of process until host packaging and deployment details are ready.
+This still keeps the native layer out of the main gameplay path while making in-host validation possible.

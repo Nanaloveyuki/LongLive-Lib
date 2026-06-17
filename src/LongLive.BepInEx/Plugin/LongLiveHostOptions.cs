@@ -7,6 +7,8 @@ public sealed class LongLiveHostOptions
     public LongLiveHostOptions(
         ConfigEntry<bool> enableDebugLogging,
         ConfigEntry<bool> enableContentRuntimeInspection,
+        ConfigEntry<bool> enableNativeProbe,
+        ConfigEntry<string> nativeLibraryPath,
         ConfigEntry<bool> enableDemoCommandRegistration,
         ConfigEntry<bool> enableDemoQueryRegistration,
         ConfigEntry<bool> enableJsonModDemoInstall,
@@ -15,6 +17,8 @@ public sealed class LongLiveHostOptions
     {
         EnableDebugLogging = enableDebugLogging;
         EnableContentRuntimeInspection = enableContentRuntimeInspection;
+        EnableNativeProbe = enableNativeProbe;
+        NativeLibraryPath = nativeLibraryPath;
         EnableDemoCommandRegistration = enableDemoCommandRegistration;
         EnableDemoQueryRegistration = enableDemoQueryRegistration;
         EnableJsonModDemoInstall = enableJsonModDemoInstall;
@@ -25,6 +29,10 @@ public sealed class LongLiveHostOptions
     public ConfigEntry<bool> EnableDebugLogging { get; }
 
     public ConfigEntry<bool> EnableContentRuntimeInspection { get; }
+
+    public ConfigEntry<bool> EnableNativeProbe { get; }
+
+    public ConfigEntry<string> NativeLibraryPath { get; }
 
     public ConfigEntry<bool> EnableDemoCommandRegistration { get; }
 

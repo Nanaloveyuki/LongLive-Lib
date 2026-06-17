@@ -145,7 +145,6 @@ public sealed class LongLiveMainMenuEntryInstaller : ILongLiveInstaller
 
         return new ButtonSpriteSet(normalSprite, pressedSprite, hoverSprite, sourceDescription);
     }
-    }
 
     private void BindClick(GameObject entry)
     {
@@ -199,6 +198,7 @@ public sealed class LongLiveMainMenuEntryInstaller : ILongLiveInstaller
     private void ShowDiagnostics()
     {
         var report = _runtime.ContentInspector.Inspect();
+        var nativeProbe = LongLiveNativeProbeState.Current;
         var lines = new[]
         {
             $"Plugin: {LongLivePluginMetadata.PluginName} {LongLivePluginMetadata.PluginVersion}",
@@ -206,7 +206,12 @@ public sealed class LongLiveMainMenuEntryInstaller : ILongLiveInstaller
             $"Content inspection available: {report.IsAvailable}",
             $"Local mods dir resolved: {report.Capabilities.CanResolveLocalModsDirectory}",
             $"Content backend: {_options.ContentBackend.Value}",
-            "Native probe: DllImport route verified in repo tooling",
+            $"Native probe enabled: {nativeProbe.Enabled}",
+            $"Native probe success: {nativeProbe.Success}",
+            $"Native probe summary: {nativeProbe.Summary}",
+            $"Native probe abi: {nativeProbe.AbiVersion?.ToString() ?? "n/a"}",
+            $"Native probe ready: {nativeProbe.ReadyFlag?.ToString() ?? "n/a"}",
+            $"Native probe sample damage: {nativeProbe.TurnDamage?.ToString() ?? "n/a"}",
         };
 
         var body = string.Join("\n", lines);

@@ -48,13 +48,32 @@ if ([string]::IsNullOrWhiteSpace($resolvedPluginsDir)) {
 
 Push-Location $repoRoot
 try {
-    & (Join-Path $PSScriptRoot "build-host.ps1") -Configuration $Configuration
-    if ($LASTEXITCODE -ne 0) {
-        throw "Host build failed with exit code $LASTEXITCODE. Deployment aborted."
-    }
-
     $outputDir = Join-Path $repoRoot "src\LongLive.BepInEx\bin\$Configuration\net472"
     $dllPath = Join-Path $outputDir "LongLive.BepInEx.dll"
+
+    $buildScript = Join-Path $PSScriptRoot "build-host.ps1"
+    $buildFailed = $false
+    $buildErrorMessage = $null
+
+    try {
+        & $buildScript -Configuration $Configuration
+        if ($LASTEXITCODE -ne 0) {
+            throw "Host build failed with exit code $LASTEXITCODE. Deployment aborted."
+        }
+    }
+    catch {
+        $buildFailed = $true
+        $buildErrorMessage = $_.Exception.Message
+    }
+
+    if ($buildFailed -and -not (Test-Path $dllPath)) {
+        throw $buildErrorMessage
+    }
+
+    if ($buildFailed) {
+        Write-Warning "Host build reported a failure, but an existing output DLL was found. Continuing deployment with the existing build output."
+        Write-Warning $buildErrorMessage
+    }
 
     if (-not (Test-Path $dllPath)) {
         throw "Built plugin DLL not found: $dllPath"
@@ -79,7 +98,12 @@ try {
     foreach ($pattern in $copyPatterns) {
         $files = Get-ChildItem -Path $outputDir -Filter $pattern -File -ErrorAction SilentlyContinue
         foreach ($file in $files) {
-            Copy-Item -LiteralPath $file.FullName -Destination (Join-Path $resolvedPluginsDir $file.Name) -Force
+            try {
+                Copy-Item -LiteralPath $file.FullName -Destination (Join-Path $resolvedPluginsDir $file.Name) -Force
+            }
+            catch [System.IO.IOException] {
+                Write-Warning "Skipped copying locked file: $($file.Name). Close the game or any process that currently loads it, then rerun deploy-host.ps1 to replace it."
+            }
         }
     }
 
@@ -87,7 +111,22 @@ try {
     if (Test-Path $assetSourceDir) {
         $assetTargetDir = Join-Path $resolvedPluginsDir 'LongLiveAssets'
         New-Item -ItemType Directory -Force -Path $assetTargetDir | Out-Null
-        Copy-Item -Path (Join-Path $assetSourceDir '*') -Destination $assetTargetDir -Recurse -Force
+        try {
+            Copy-Item -Path (Join-Path $assetSourceDir '*') -Destination $assetTargetDir -Recurse -Force
+        }
+        catch [System.IO.IOException] {
+            Write-Warning "Skipped copying one or more LongLive asset files because a target file is locked."
+        }
+    }
+
+    $nativeLibraryPath = Join-Path $repoRoot 'native\target\debug\longlive_native_core.dll'
+    if (Test-Path $nativeLibraryPath) {
+        try {
+            Copy-Item -LiteralPath $nativeLibraryPath -Destination (Join-Path $resolvedPluginsDir 'longlive_native_core.dll') -Force
+        }
+        catch [System.IO.IOException] {
+            Write-Warning "Skipped copying locked native library file: longlive_native_core.dll"
+        }
     }
 
     Write-Host "Deployed LongLive.BepInEx to: $resolvedPluginsDir"

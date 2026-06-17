@@ -26,6 +26,7 @@ public sealed class LongLiveBootstrapper
         {
             new LongLiveMainMenuEntryInstaller(_logger, _runtime, _options),
             new LongLiveContentInspectionInstaller(_logger, _runtime, _options),
+            new LongLiveNativeProbeInstaller(_logger, _options),
             new LongLiveDemoInstaller(_logger, _runtime, _options),
             new LongLiveJsonModDemoInstaller(_logger, _runtime, _options),
         };

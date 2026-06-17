@@ -62,6 +62,18 @@ public sealed class LongLivePlugin : BaseUnityPlugin
             false,
             "Log a read-only inspection report of Next content runtime entry points during bootstrap.");
 
+        var enableNativeProbe = Config.Bind(
+            "LongLive",
+            "EnableNativeProbe",
+            false,
+            "Attempt a native Rust-core DllImport probe during host bootstrap.");
+
+        var nativeLibraryPath = Config.Bind(
+            "LongLive",
+            "NativeLibraryPath",
+            string.Empty,
+            "Optional explicit path to longlive_native_core.dll used by the native probe installer.");
+
         var enableDemoCommandRegistration = Config.Bind(
             "LongLive",
             "EnableDemoCommandRegistration",
@@ -95,6 +107,8 @@ public sealed class LongLivePlugin : BaseUnityPlugin
         return new LongLiveHostOptions(
             enableDebugLogging,
             enableContentRuntimeInspection,
+            enableNativeProbe,
+            nativeLibraryPath,
             enableDemoCommandRegistration,
             enableDemoQueryRegistration,
             enableJsonModDemoInstall,
