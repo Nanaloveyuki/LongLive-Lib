@@ -1,5 +1,6 @@
 param(
-    [string]$Configuration = "Debug"
+    [string]$Configuration = "Debug",
+    [string]$PluginsDir = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -11,11 +12,12 @@ if (-not (Test-Path $propsPath)) {
     throw "Missing eng/LocalReferences.props. Copy eng/LocalReferences.props.example first."
 }
 
-[xml]$propsXml = Get-Content $propsPath
+[xml]$propsXml = [System.IO.File]::ReadAllText($propsPath, [System.Text.Encoding]::UTF8)
 $propertyGroup = $propsXml.Project.PropertyGroup
 
 $enabled = [string]$propertyGroup.LongLiveEnableLocalHostReferences
 $gameRoot = [string]$propertyGroup.McsGameRoot
+$bepInExCoreDir = [string]$propertyGroup.BepInExCoreDir
 
 if ($enabled -ne "true") {
     throw "LongLiveEnableLocalHostReferences must be set to true in eng/LocalReferences.props."
@@ -25,33 +27,70 @@ if ([string]::IsNullOrWhiteSpace($gameRoot)) {
     throw "McsGameRoot is empty in eng/LocalReferences.props."
 }
 
-$pluginsDir = Join-Path $gameRoot "BepInEx\plugins"
-if (-not (Test-Path $pluginsDir)) {
-    throw "BepInEx plugins directory not found: $pluginsDir"
+if ([string]::IsNullOrWhiteSpace($bepInExCoreDir)) {
+    throw "BepInExCoreDir is empty in eng/LocalReferences.props."
+}
+
+$resolvedPluginsDir = $PluginsDir
+if ([string]::IsNullOrWhiteSpace($resolvedPluginsDir)) {
+    $coreDir = Split-Path -Parent $bepInExCoreDir
+    $candidateDirs = @(
+        (Join-Path $gameRoot "BepInEx\plugins"),
+        (Join-Path $coreDir "plugins")
+    )
+
+    $resolvedPluginsDir = $candidateDirs | Where-Object { Test-Path $_ } | Select-Object -First 1
+}
+
+if ([string]::IsNullOrWhiteSpace($resolvedPluginsDir)) {
+    throw "BepInEx plugins directory not found. Checked game-root and core-adjacent plugin directories."
 }
 
 Push-Location $repoRoot
 try {
     & (Join-Path $PSScriptRoot "build-host.ps1") -Configuration $Configuration
+    if ($LASTEXITCODE -ne 0) {
+        throw "Host build failed with exit code $LASTEXITCODE. Deployment aborted."
+    }
 
     $outputDir = Join-Path $repoRoot "src\LongLive.BepInEx\bin\$Configuration\net472"
     $dllPath = Join-Path $outputDir "LongLive.BepInEx.dll"
-    $pdbPath = Join-Path $outputDir "LongLive.BepInEx.pdb"
-    $depsPath = Join-Path $outputDir "LongLive.BepInEx.deps.json"
 
     if (-not (Test-Path $dllPath)) {
         throw "Built plugin DLL not found: $dllPath"
     }
 
-    Copy-Item -LiteralPath $dllPath -Destination (Join-Path $pluginsDir "LongLive.BepInEx.dll") -Force
+    $copyPatterns = @(
+        'LongLive.BepInEx.*',
+        'LongLive.Mods.*',
+        'LongLive.Next.Runtime.*',
+        'LongLive.Next.Abstractions.*',
+        'Microsoft.Bcl.AsyncInterfaces.dll',
+        'System.Buffers.dll',
+        'System.Memory.dll',
+        'System.Numerics.Vectors.dll',
+        'System.Runtime.CompilerServices.Unsafe.dll',
+        'System.Text.Encodings.Web.dll',
+        'System.Text.Json.dll',
+        'System.Threading.Tasks.Extensions.dll',
+        'System.ValueTuple.dll'
+    )
 
-    if (Test-Path $pdbPath) {
-        Copy-Item -LiteralPath $pdbPath -Destination (Join-Path $pluginsDir "LongLive.BepInEx.pdb") -Force
+    foreach ($pattern in $copyPatterns) {
+        $files = Get-ChildItem -Path $outputDir -Filter $pattern -File -ErrorAction SilentlyContinue
+        foreach ($file in $files) {
+            Copy-Item -LiteralPath $file.FullName -Destination (Join-Path $resolvedPluginsDir $file.Name) -Force
+        }
     }
 
-    if (Test-Path $depsPath) {
-        Copy-Item -LiteralPath $depsPath -Destination (Join-Path $pluginsDir "LongLive.BepInEx.deps.json") -Force
+    $assetSourceDir = Join-Path $repoRoot 'src\LongLive.BepInEx\LongLiveAssets'
+    if (Test-Path $assetSourceDir) {
+        $assetTargetDir = Join-Path $resolvedPluginsDir 'LongLiveAssets'
+        New-Item -ItemType Directory -Force -Path $assetTargetDir | Out-Null
+        Copy-Item -Path (Join-Path $assetSourceDir '*') -Destination $assetTargetDir -Recurse -Force
     }
+
+    Write-Host "Deployed LongLive.BepInEx to: $resolvedPluginsDir"
 }
 finally {
     Pop-Location

@@ -1,7 +1,7 @@
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
-using BepInEx.Unity.Mono;
+using HarmonyLib;
 using LongLive.Next.Runtime;
 
 namespace LongLive.BepInEx.Plugin;
@@ -9,6 +9,7 @@ namespace LongLive.BepInEx.Plugin;
 [BepInPlugin(LongLivePluginMetadata.PluginGuid, LongLivePluginMetadata.PluginName, LongLivePluginMetadata.PluginVersion)]
 public sealed class LongLivePlugin : BaseUnityPlugin
 {
+    private Harmony? _harmony;
     private NextRuntimeFacade? _runtime;
     private LongLiveBootstrapper? _bootstrapper;
     private LongLiveHostOptions? _options;
@@ -27,6 +28,8 @@ public sealed class LongLivePlugin : BaseUnityPlugin
         LogSource = Logger;
 
         Logger.LogInfo($"{LongLivePluginMetadata.PluginName} plugin awake.");
+        _harmony = new Harmony(LongLivePluginMetadata.PluginGuid);
+        _harmony.PatchAll(typeof(LongLivePlugin).Assembly);
         _bootstrapper = new LongLiveBootstrapper(Logger, Runtime, Options);
         _bootstrapper.Initialize();
     }
@@ -39,6 +42,7 @@ public sealed class LongLivePlugin : BaseUnityPlugin
     private void OnDestroy()
     {
         _bootstrapper?.Shutdown();
+        _harmony?.UnpatchSelf();
         Logger.LogInfo("LongLive plugin destroyed.");
         LogSource = null;
         Instance = null;
@@ -51,6 +55,12 @@ public sealed class LongLivePlugin : BaseUnityPlugin
             "EnableDebugLogging",
             false,
             "Enable additional LongLive host bootstrap logging.");
+
+        var enableContentRuntimeInspection = Config.Bind(
+            "LongLive",
+            "EnableContentRuntimeInspection",
+            false,
+            "Log a read-only inspection report of Next content runtime entry points during bootstrap.");
 
         var enableDemoCommandRegistration = Config.Bind(
             "LongLive",
@@ -84,6 +94,7 @@ public sealed class LongLivePlugin : BaseUnityPlugin
 
         return new LongLiveHostOptions(
             enableDebugLogging,
+            enableContentRuntimeInspection,
             enableDemoCommandRegistration,
             enableDemoQueryRegistration,
             enableJsonModDemoInstall,

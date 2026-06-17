@@ -16,12 +16,16 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(LongLiveEnableLocalHostReferences)' == 'true'">
-    <Reference Include="BepInEx.Core">
-      <HintPath>$(BepInExCoreDir)\BepInEx.Core.dll</HintPath>
+    <Reference Include="0Harmony">
+      <HintPath>$(BepInExCoreDir)\0Harmony.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <Reference Include="BepInEx.Unity.Mono">
-      <HintPath>$(BepInExCoreDir)\BepInEx.Unity.Mono.dll</HintPath>
+    <Reference Include="BepInEx">
+      <HintPath>$(BepInExCoreDir)\BepInEx.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(McsGameRoot)\觅长生_Data\Managed\Assembly-CSharp.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
@@ -30,6 +34,18 @@
     </Reference>
     <Reference Include="UnityEngine">
       <HintPath>$(McsGameRoot)\觅长生_Data\Managed\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.ImageConversionModule">
+      <HintPath>$(McsGameRoot)\觅长生_Data\Managed\UnityEngine.ImageConversionModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(McsGameRoot)\觅长生_Data\Managed\UnityEngine.UI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>$(McsGameRoot)\觅长生_Data\Managed\UnityEngine.UIModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>

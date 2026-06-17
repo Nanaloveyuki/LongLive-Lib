@@ -23,15 +23,24 @@ To compile the actual plugin entry shell:
 
 Once enabled, the `Plugin/` source files are compiled and the project references the local host runtime assemblies.
 
+The current main-menu validation entry now follows Next's own integration style more closely. It patches `MainUIMag.OpenMain` through Harmony, clones the `神仙斗法` button at the same UI lifecycle point, and applies the LongLive sprite set directly onto `Image` and `FpBtn`.
+
 The optional JSON-mod demo bootstrap is also explicit opt-in:
 
 - enable `EnableJsonModDemoInstall`
 - set `JsonModDemoPath` to a real package directory
 - optionally set `ContentBackend` to `Deferred` or `Next`
 
+There is also an optional read-only runtime inspection path:
+
+- enable `EnableContentRuntimeInspection`
+- optionally enable `EnableDebugLogging` for per-type property/method detail
+
 The host project does not assume a repository-local sample path at runtime.
 
 The current `Next` content backend option is only a host-side shell. It preserves the future runtime injection composition point while still reporting deferred content installation today.
+
+The host also now includes a first visible in-game validation shell on the main menu. Its purpose is to make plugin load success obvious before deeper content or native-core integration is tested in-game.
 
 You can then build the host shell with:
 
@@ -44,6 +53,32 @@ If you want to build and deploy the host shell into the local `BepInEx/plugins` 
 ```powershell
 ./scripts/deploy-host.ps1
 ```
+
+On workshop-driven installations like the current local setup, the deploy helper also falls back to the plugin directory adjacent to `BepInEx/core` when the game root does not contain a standalone `BepInEx/plugins` directory.
+
+The host main-menu entry also supports optional custom button sprites under:
+
+```text
+src/LongLive.BepInEx/LongLiveAssets/Next/
+```
+
+Expected filenames:
+
+- `logo_default.png`
+- `logo_press.png`
+- `logo_selector.png`
+
+Each image should match Next's current button size of `100x100`.
+
+If all three files are present, the host plugin replaces the cloned button sprites directly through the same main-menu patch timing that Next uses.
+
+If you want to stage the current JSON demo package as a real Next local-test mod under `觅长生/本地Mod测试/`, use:
+
+```powershell
+./scripts/deploy-next-localtest.ps1
+```
+
+That script creates a valid local group shell at `本地Mod测试/LongLive.LocalTest/plugins/Next/modLongLiveDemo/` and copies the current JSON demo package under `LongLive/json-mod-demo/`.
 
 ## Intended Responsibility
 

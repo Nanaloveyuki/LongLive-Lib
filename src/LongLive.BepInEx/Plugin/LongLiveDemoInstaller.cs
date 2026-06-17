@@ -1,3 +1,4 @@
+using System;
 using BepInEx.Logging;
 using LongLive.Next.Abstractions.State;
 using LongLive.Next.Runtime;
@@ -23,30 +24,58 @@ public sealed class LongLiveDemoInstaller : ILongLiveInstaller
     {
         if (_options.EnableDemoCommandRegistration.Value)
         {
-            _runtime.CommandRegistry.Register(
-                "LongLiveEcho",
-                (context, complete) =>
+            if (_runtime.CommandRegistry.IsAvailable)
+            {
+                try
                 {
-                    var text = context.GetString(0, string.Empty);
-                    if (_options.EnableDebugLogging.Value)
-                    {
-                        _logger.LogInfo($"LongLiveEcho invoked with: {text}");
-                    }
+                    _runtime.CommandRegistry.Register(
+                        "LongLiveEcho",
+                        (context, complete) =>
+                        {
+                            var text = context.GetString(0, string.Empty);
+                            if (_options.EnableDebugLogging.Value)
+                            {
+                                _logger.LogInfo($"LongLiveEcho invoked with: {text}");
+                            }
 
-                    _runtime.SetString(LongLiveStateKeys.LastError, text);
-                    complete();
-                });
+                            _runtime.SetString(LongLiveStateKeys.LastError, text);
+                            complete();
+                        });
 
-            _logger.LogInfo("Registered demo command: LongLiveEcho");
+                    _logger.LogInfo("Registered demo command: LongLiveEcho");
+                }
+                catch (PlatformNotSupportedException exception)
+                {
+                    _logger.LogWarning($"Skipping demo command registration: {exception.Message}");
+                }
+            }
+            else if (_options.EnableDebugLogging.Value)
+            {
+                _logger.LogInfo("Skipping demo command registration because the command registry is unavailable.");
+            }
         }
 
         if (_options.EnableDemoQueryRegistration.Value)
         {
-            _runtime.QueryRegistry.Register(
-                "LongLiveDebugEnabled",
-                _ => _runtime.GetInt(LongLiveStateKeys.DebugEnabled, 0));
+            if (_runtime.QueryRegistry.IsAvailable)
+            {
+                try
+                {
+                    _runtime.QueryRegistry.Register(
+                        "LongLiveDebugEnabled",
+                        _ => _runtime.GetInt(LongLiveStateKeys.DebugEnabled, 0));
 
-            _logger.LogInfo("Registered demo query: LongLiveDebugEnabled");
+                    _logger.LogInfo("Registered demo query: LongLiveDebugEnabled");
+                }
+                catch (PlatformNotSupportedException exception)
+                {
+                    _logger.LogWarning($"Skipping demo query registration: {exception.Message}");
+                }
+            }
+            else if (_options.EnableDebugLogging.Value)
+            {
+                _logger.LogInfo("Skipping demo query registration because the query registry is unavailable.");
+            }
         }
     }
 }

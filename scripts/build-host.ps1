@@ -11,7 +11,7 @@ if (-not (Test-Path $propsPath)) {
     throw "Missing eng/LocalReferences.props. Copy eng/LocalReferences.props.example first."
 }
 
-[xml]$propsXml = Get-Content $propsPath
+[xml]$propsXml = [System.IO.File]::ReadAllText($propsPath, [System.Text.Encoding]::UTF8)
 $propertyGroup = $propsXml.Project.PropertyGroup
 
 $enabled = [string]$propertyGroup.LongLiveEnableLocalHostReferences
@@ -30,11 +30,19 @@ if ([string]::IsNullOrWhiteSpace($bepInExCoreDir)) {
     throw "BepInExCoreDir is empty in eng/LocalReferences.props."
 }
 
+$managedDir = Get-ChildItem -Path $gameRoot -Directory -Filter '*_Data' -ErrorAction SilentlyContinue |
+    ForEach-Object { Join-Path $_.FullName 'Managed' } |
+    Where-Object { Test-Path $_ } |
+    Select-Object -First 1
+
+if ([string]::IsNullOrWhiteSpace($managedDir)) {
+    throw "Unity managed directory not found under game root: $gameRoot"
+}
+
 $requiredPaths = @(
-    (Join-Path $bepInExCoreDir "BepInEx.Core.dll"),
-    (Join-Path $bepInExCoreDir "BepInEx.Unity.Mono.dll"),
-    (Join-Path $gameRoot "觅长生_Data\Managed\UnityEngine.dll"),
-    (Join-Path $gameRoot "觅长生_Data\Managed\UnityEngine.CoreModule.dll")
+    (Join-Path $bepInExCoreDir "BepInEx.dll"),
+    (Join-Path $managedDir "UnityEngine.dll"),
+    (Join-Path $managedDir "UnityEngine.CoreModule.dll")
 )
 
 foreach ($path in $requiredPaths) {
@@ -45,7 +53,11 @@ foreach ($path in $requiredPaths) {
 
 Push-Location $repoRoot
 try {
-    dotnet build .\src\LongLive.BepInEx\LongLive.BepInEx.csproj -c $Configuration
+    dotnet build-server shutdown | Out-Null
+    dotnet build .\src\LongLive.BepInEx\LongLive.BepInEx.csproj -c $Configuration --disable-build-servers -p:UseSharedCompilation=false
+    if ($LASTEXITCODE -ne 0) {
+        throw "Host build failed with exit code $LASTEXITCODE."
+    }
 }
 finally {
     Pop-Location

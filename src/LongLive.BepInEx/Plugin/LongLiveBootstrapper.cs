@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using BepInEx.Logging;
 using LongLive.Next.Abstractions.State;
 using LongLive.Next.Runtime;
+using UnityEngine.SceneManagement;
 
 namespace LongLive.BepInEx.Plugin;
 
@@ -13,6 +14,8 @@ public sealed class LongLiveBootstrapper
     private readonly LongLiveHostOptions _options;
     private readonly IReadOnlyList<ILongLiveInstaller> _installers;
     private bool _initialized;
+    private bool _runtimeInstallCompleted;
+    private bool _sceneHookRegistered;
 
     public LongLiveBootstrapper(ManualLogSource logger, NextRuntimeFacade runtime, LongLiveHostOptions options)
     {
@@ -21,6 +24,8 @@ public sealed class LongLiveBootstrapper
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _installers = new ILongLiveInstaller[]
         {
+            new LongLiveMainMenuEntryInstaller(_logger, _runtime, _options),
+            new LongLiveContentInspectionInstaller(_logger, _runtime, _options),
             new LongLiveDemoInstaller(_logger, _runtime, _options),
             new LongLiveJsonModDemoInstaller(_logger, _runtime, _options),
         };
@@ -42,15 +47,10 @@ public sealed class LongLiveBootstrapper
             _logger.LogInfo("Debug logging is enabled.");
         }
 
-        if (!_runtime.IsAvailable)
-        {
-            _logger.LogWarning("Next runtime types are not available in the current AppDomain. Deferred integration is expected until the host loads Next.");
-            return;
-        }
-
-        RunInstallers();
-        MarkBootstrapCompleted();
         _initialized = true;
+
+        EnsureSceneHook();
+        TryInstallRuntimeFeatures();
     }
 
     public void Shutdown()
@@ -60,8 +60,64 @@ public sealed class LongLiveBootstrapper
             return;
         }
 
+        if (_sceneHookRegistered)
+        {
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            _sceneHookRegistered = false;
+        }
+
         _logger.LogInfo("LongLive host bootstrap shutting down.");
         _initialized = false;
+        _runtimeInstallCompleted = false;
+    }
+
+    private void EnsureSceneHook()
+    {
+        if (_sceneHookRegistered)
+        {
+            return;
+        }
+
+        SceneManager.sceneLoaded += OnSceneLoaded;
+        _sceneHookRegistered = true;
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (_options.EnableDebugLogging.Value)
+        {
+            _logger.LogInfo($"LongLive observed scene load: {scene.name}, nextAvailable={_runtime.IsAvailable}");
+        }
+
+        TryInstallRuntimeFeatures();
+    }
+
+    private void TryInstallRuntimeFeatures()
+    {
+        if (_runtimeInstallCompleted)
+        {
+            return;
+        }
+
+        if (_options.EnableDebugLogging.Value)
+        {
+            _logger.LogInfo($"LongLive runtime install check: nextAvailable={_runtime.IsAvailable}");
+        }
+
+        if (!_runtime.IsAvailable)
+        {
+            if (_options.EnableDebugLogging.Value)
+            {
+                _logger.LogInfo("Next runtime is still unavailable. Runtime-dependent LongLive installers remain deferred.");
+            }
+
+            return;
+        }
+
+        _logger.LogInfo("Next runtime became available. Running LongLive installers.");
+        RunInstallers();
+        MarkBootstrapCompleted();
+        _runtimeInstallCompleted = true;
     }
 
     private void RunInstallers()

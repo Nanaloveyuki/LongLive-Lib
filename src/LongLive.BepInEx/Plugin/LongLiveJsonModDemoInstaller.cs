@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BepInEx.Logging;
@@ -15,6 +16,9 @@ public sealed class LongLiveJsonModDemoInstaller : ILongLiveInstaller
     private readonly LongLiveHostOptions _options;
     private readonly LongLiveModToolkit _toolkit;
     private readonly LongLiveContentRegistryProvider _contentRegistryProvider;
+    private const string DefaultLocalTestGroupName = "LongLive.LocalTest";
+    private const string DefaultLocalTestModName = "modLongLiveDemo";
+    private const string DefaultJsonPackageFolderName = "json-mod-demo";
 
     public LongLiveJsonModDemoInstaller(
         ManualLogSource logger,
@@ -38,10 +42,10 @@ public sealed class LongLiveJsonModDemoInstaller : ILongLiveInstaller
             return;
         }
 
-        var demoPath = _options.JsonModDemoPath.Value;
+        var demoPath = ResolveDemoPath();
         if (string.IsNullOrWhiteSpace(demoPath))
         {
-            _logger.LogWarning("JSON mod demo install is enabled but JsonModDemoPath is empty. Skipping JSON mod demo install.");
+            _logger.LogWarning("JSON mod demo install is enabled but no demo package path could be resolved. Skipping JSON mod demo install.");
             return;
         }
 
@@ -118,10 +122,61 @@ public sealed class LongLiveJsonModDemoInstaller : ILongLiveInstaller
         {
             if (contentEntry.Status != LongLiveContentInstallStatus.Installed)
             {
-                _logger.LogInfo($"JSON mod content {contentEntry.ContentType} {contentEntry.ContentId}: {contentEntry.Status} - {contentEntry.Message}");
+                _logger.LogInfo($"JSON mod content {contentEntry.ContentType} {contentEntry.ContentId}: {contentEntry.Status} [{contentEntry.ReasonCode}] - {contentEntry.Message}");
             }
         }
 
+        LogContentDryRunSummary(installReport.ContentEntries);
+
         _logger.LogInfo($"JSON mod demo content summary: items={loadReport.Package.Items?.Items.Count ?? 0}, skills={loadReport.Package.Skills?.Skills.Count ?? 0}, buffs={loadReport.Package.Buffs?.Buffs.Count ?? 0}, assets={loadReport.Package.Assets?.Assets.Count ?? 0}");
+    }
+
+    private string ResolveDemoPath()
+    {
+        var configuredPath = _options.JsonModDemoPath.Value;
+        if (!string.IsNullOrWhiteSpace(configuredPath))
+        {
+            return configuredPath;
+        }
+
+        var report = _runtime.ContentInspector.Inspect();
+        if (!report.Capabilities.CanResolveLocalModsDirectory || string.IsNullOrWhiteSpace(report.LocalModsDirectory))
+        {
+            return string.Empty;
+        }
+
+        var defaultPath = Path.Combine(
+            report.LocalModsDirectory,
+            DefaultLocalTestGroupName,
+            "plugins",
+            "Next",
+            DefaultLocalTestModName,
+            "LongLive",
+            DefaultJsonPackageFolderName);
+
+        if (Directory.Exists(defaultPath))
+        {
+            _logger.LogInfo($"JsonModDemoPath is empty. Using default local-test demo package path: {defaultPath}");
+            return defaultPath;
+        }
+
+        return string.Empty;
+    }
+
+    private void LogContentDryRunSummary(IReadOnlyList<LongLiveContentInstallEntry> entries)
+    {
+        if (entries.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var group in entries
+                     .GroupBy(entry => new { entry.ContentType, entry.Status, entry.ReasonCode })
+                     .OrderBy(group => group.Key.ContentType, StringComparer.Ordinal)
+                     .ThenBy(group => group.Key.Status)
+                     .ThenBy(group => group.Key.ReasonCode, StringComparer.Ordinal))
+        {
+            _logger.LogInfo($"JSON mod dry-run group: type={group.Key.ContentType}, status={group.Key.Status}, reason={group.Key.ReasonCode}, count={group.Count()}");
+        }
     }
 }

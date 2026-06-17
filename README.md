@@ -43,6 +43,7 @@ The current working split is:
 - [`docs/mod-loader-usage.md`](./docs/mod-loader-usage.md): current usage pattern for JSON-mod loading and validation
 - [`docs/content-schema-draft.md`](./docs/content-schema-draft.md): first draft of content-oriented JSON-mod declarations
 - [`docs/next-content-backend-design.md`](./docs/next-content-backend-design.md): planned boundary for a future Next-oriented content backend
+- [`docs/native-core-feasibility.md`](./docs/native-core-feasibility.md): first-stage Rust native-core feasibility path
 - [`src/`](./src/): the first compile-ready C# project skeleton
 
 ## Recommended Next Steps
