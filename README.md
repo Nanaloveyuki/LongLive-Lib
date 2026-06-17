@@ -1,0 +1,54 @@
+# LongLive-Lib
+
+`LongLive-Lib` is an experimental library repository for the Tale of Immortal mod ecosystem.
+Its current direction is to build a cleaner and more maintainable developer-facing layer on top of `BepInEx` and `Next`.
+
+At this stage, the repository is intentionally lightweight. The focus is on source study, API inventory, project boundaries, and a minimal compile-ready skeleton, not on a full production framework yet.
+
+## Current Status
+
+- Code: compile-ready bootstrap skeleton with first runtime-backed wrappers
+- Reference sources: stored under [`devdocs/`](./devdocs/)
+- Main direction: `C# host layer + Rust core`
+
+## Planned Layering
+
+The current working split is:
+
+- `LongLive.Core`
+  Shared logic, models, result/error types, and future Rust-oriented core abstractions
+- `LongLive.BepInEx`
+  Host-layer integration for BepInEx concerns such as plugin entry, logging, configuration, and lifecycle glue
+- `LongLive.Next`
+  High-level wrappers over Next, including event execution, command registration, state access, and UI helpers
+- `LongLive.I18n`
+  Localization and text-resource related concerns, to be split further when the runtime boundary is clearer
+
+## Constraints Right Now
+
+- The full host development environment is not set up yet
+- A full framework is intentionally postponed
+- The current priority is documentation, boundary definition, and API stabilization
+
+## Repository Contents
+
+- [`devdocs/BepInEx-master/`](./devdocs/BepInEx-master/): local BepInEx source and documentation copy
+- [`devdocs/Next-main/`](./devdocs/Next-main/): local Next source and documentation copy
+- [`docs/bootstrap-notes.md`](./docs/bootstrap-notes.md): current bootstrap assumptions and constraints
+- [`docs/next-runtime-design.md`](./docs/next-runtime-design.md): current `LongLive.Next` API and bootstrap runtime design
+- [`docs/next-runtime-usage.md`](./docs/next-runtime-usage.md): current usage patterns for the bootstrap runtime facade
+- [`docs/next-runtime-examples.md`](./docs/next-runtime-examples.md): short examples for the facade, extensions, and state-key helpers
+- [`docs/bepinex-host-bootstrap.md`](./docs/bepinex-host-bootstrap.md): current `LongLive.BepInEx` host bootstrap strategy
+- [`docs/mod-schema-draft.md`](./docs/mod-schema-draft.md): first draft of the declarative JSON-mod schema
+- [`docs/mod-loader-usage.md`](./docs/mod-loader-usage.md): current usage pattern for JSON-mod loading and validation
+- [`docs/content-schema-draft.md`](./docs/content-schema-draft.md): first draft of content-oriented JSON-mod declarations
+- [`docs/next-content-backend-design.md`](./docs/next-content-backend-design.md): planned boundary for a future Next-oriented content backend
+- [`src/`](./src/): the first compile-ready C# project skeleton
+
+## Recommended Next Steps
+
+1. Keep documenting which `LongLive.Next` APIs are intended to be stable and which runtime details are bootstrap-only
+2. Continue separating what should wrap Next directly from what would require lower-level BepInEx or Harmony work
+3. Add minimal runtime composition helpers before introducing a real plugin host project
+
+Until then, Unity projects, AssetBundle workflows, and deep patching should remain out of scope.

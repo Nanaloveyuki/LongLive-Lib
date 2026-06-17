@@ -1,0 +1,17 @@
+<Project>
+  <PropertyGroup>
+    <!--
+      Copy this file to eng/LocalReferences.props and replace the example paths
+      with your local host environment paths when you are ready to build the
+      BepInEx host project.
+    -->
+
+    <LongLiveEnableLocalHostReferences>false</LongLiveEnableLocalHostReferences>
+
+    <!-- Example: F:\games\MCS -->
+    <McsGameRoot></McsGameRoot>
+
+    <!-- Example: F:\games\MCS\BepInEx\core -->
+    <BepInExCoreDir></BepInExCoreDir>
+  </PropertyGroup>
+</Project>

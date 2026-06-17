@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>LongLive.BepInEx</AssemblyName>
+    <RootNamespace>LongLive.BepInEx</RootNamespace>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <LongLiveEnableLocalHostReferences Condition="'$(LongLiveEnableLocalHostReferences)' == ''">false</LongLiveEnableLocalHostReferences>
+  </PropertyGroup>
+
+  <Import Project="..\..\eng\LocalReferences.props" Condition="Exists('..\..\eng\LocalReferences.props')" />
+
+  <ItemGroup>
+    <ProjectReference Include="..\LongLive.Mods\LongLive.Mods.csproj" />
+    <ProjectReference Include="..\LongLive.Next.Abstractions\LongLive.Next.Abstractions.csproj" />
+    <ProjectReference Include="..\LongLive.Next.Runtime\LongLive.Next.Runtime.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(LongLiveEnableLocalHostReferences)' == 'true'">
+    <Reference Include="BepInEx.Core">
+      <HintPath>$(BepInExCoreDir)\BepInEx.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="BepInEx.Unity.Mono">
+      <HintPath>$(BepInExCoreDir)\BepInEx.Unity.Mono.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(McsGameRoot)\觅长生_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(McsGameRoot)\觅长生_Data\Managed\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(LongLiveEnableLocalHostReferences)' != 'true'">
+    <Compile Remove="Plugin\**\*.cs" />
+    <None Include="Plugin\**\*.cs" />
+  </ItemGroup>
+</Project>
