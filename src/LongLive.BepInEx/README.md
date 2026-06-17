@@ -35,6 +35,23 @@ There is also an optional experimental battle safety switch:
 
 - enable `EnableExperimentalBattleGuard`
 
+When battle trace is enabled together with debug logging, the host now also emits automatic battle-level summaries at key combat exit checkpoints such as:
+
+- `Fight.FightResultMag.ShowVictory()`
+- `Fight.FightVictory.SetVictory()`
+- `Avatar.die()`
+- the next battle reset
+
+Those summaries are intended to support broad detection across unknown skills rather than requiring one-by-one manual log counting.
+
+Current summary groups include:
+
+- top negative-HP avatars
+- top damage-attempt and `recvDamage(...)` skill IDs
+- top `Spell.onBuffTick(...)` skill IDs
+- top guard-blocked skill IDs
+- top `Buff.onLoopTrigger`, `Buff.loopRealizeSeid`, and `Buff.ListRealizeSeid71` `buffID` / `seid` counters
+
 Current behavior of the experimental guard:
 
 - it targets non-player combat avatars only

@@ -15,9 +15,26 @@ internal static class LongLiveBattleTraceRuntime
     private static readonly HashSet<string> ReportedPatchNames = new HashSet<string>(StringComparer.Ordinal);
     private static readonly HashSet<string> ReportedTypeSnapshots = new HashSet<string>(StringComparer.Ordinal);
     private static readonly Dictionary<string, int> NegativeHpHitCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+    private static readonly Dictionary<string, int> NegativeHpHitCountsByAvatar = new Dictionary<string, int>(StringComparer.Ordinal);
     private static readonly HashSet<string> NegativeHpFirstSeen = new HashSet<string>(StringComparer.Ordinal);
     private static readonly HashSet<int> GuardedSkillIds = new HashSet<int>();
     private static readonly HashSet<int> ReportedGuardedSkillIds = new HashSet<int>();
+    private static readonly Dictionary<string, int> BattleEventCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+    private static readonly Dictionary<string, int> DeadAvatarReentryCountsBySource = new Dictionary<string, int>(StringComparer.Ordinal);
+    private static readonly Dictionary<int, int> DamageAttemptCountsBySkillId = new Dictionary<int, int>();
+    private static readonly Dictionary<int, int> DamageInvocationCountsBySkillId = new Dictionary<int, int>();
+    private static readonly Dictionary<int, int> SpellTickCountsBySkillId = new Dictionary<int, int>();
+    private static readonly Dictionary<int, int> GuardBlockedDamageCountsBySkillId = new Dictionary<int, int>();
+    private static readonly Dictionary<int, int> GuardBlockedSpellTickCountsBySkillId = new Dictionary<int, int>();
+    private static readonly Dictionary<int, int> ReentryCountsByBuffId = new Dictionary<int, int>();
+    private static readonly Dictionary<int, int> ReentryCountsBySeid = new Dictionary<int, int>();
+    private static readonly Dictionary<int, int> LoopRealizeCountsByBuffId = new Dictionary<int, int>();
+    private static readonly Dictionary<int, int> LoopRealizeCountsBySeid = new Dictionary<int, int>();
+    private static readonly Dictionary<int, int> ListRealizeCountsByBuffId = new Dictionary<int, int>();
+    private static readonly Dictionary<int, int> ListRealizeCountsBySeid = new Dictionary<int, int>();
+    private static int BattleSequence;
+    private static int TotalTrackedEvents;
+    private static int LastSummaryTrackedEvents;
     private static readonly string[] EntityMembers =
     {
         "HP", "Hp", "HP_Max", "_HP_Max", "MP", "Shield", "LingQi", "LingQiMax", "Dead", "IsDead", "UUID", "uuid", "Name", "name"
@@ -84,11 +101,56 @@ internal static class LongLiveBattleTraceRuntime
 
     public static void ResetBattleState()
     {
+        EmitBattleSummaryIfChanged("battle-reset");
         NegativeHpHitCounts.Clear();
+        NegativeHpHitCountsByAvatar.Clear();
         NegativeHpFirstSeen.Clear();
         GuardedSkillIds.Clear();
         ReportedGuardedSkillIds.Clear();
-        Log("battle state reset");
+        BattleEventCounts.Clear();
+        DeadAvatarReentryCountsBySource.Clear();
+        DamageAttemptCountsBySkillId.Clear();
+        DamageInvocationCountsBySkillId.Clear();
+        SpellTickCountsBySkillId.Clear();
+        GuardBlockedDamageCountsBySkillId.Clear();
+        GuardBlockedSpellTickCountsBySkillId.Clear();
+        ReentryCountsByBuffId.Clear();
+        ReentryCountsBySeid.Clear();
+        LoopRealizeCountsByBuffId.Clear();
+        LoopRealizeCountsBySeid.Clear();
+        ListRealizeCountsByBuffId.Clear();
+        ListRealizeCountsBySeid.Clear();
+        TotalTrackedEvents = 0;
+        LastSummaryTrackedEvents = 0;
+        BattleSequence++;
+        Log($"battle state reset: sequence={BattleSequence}, scene={ActiveSceneName()}");
+    }
+
+    public static void EmitBattleSummaryIfChanged(string reason)
+    {
+        if (TotalTrackedEvents == 0 || TotalTrackedEvents == LastSummaryTrackedEvents)
+        {
+            return;
+        }
+
+        Log($"battle summary checkpoint: reason={reason}, sequence={BattleSequence}, scene={ActiveSceneName()}, trackedEvents={TotalTrackedEvents}");
+        Log($"battle summary totals: {FormatBattleEventTotals()}");
+
+        LogTopSummary("battle summary top negative avatars", NegativeHpHitCountsByAvatar);
+        LogTopSummary("battle summary top damage attempts by skillId", DamageAttemptCountsBySkillId);
+        LogTopSummary("battle summary top recvDamage by skillId", DamageInvocationCountsBySkillId);
+        LogTopSummary("battle summary top spell ticks by skillId", SpellTickCountsBySkillId);
+        LogTopSummary("battle summary top blocked damage by skillId", GuardBlockedDamageCountsBySkillId);
+        LogTopSummary("battle summary top blocked spell ticks by skillId", GuardBlockedSpellTickCountsBySkillId);
+        LogTopSummary("battle summary top dead-avatar reentry sources", DeadAvatarReentryCountsBySource);
+        LogTopSummary("battle summary top Buff.onLoopTrigger buffId", ReentryCountsByBuffId);
+        LogTopSummary("battle summary top Buff.onLoopTrigger seid", ReentryCountsBySeid);
+        LogTopSummary("battle summary top Buff.loopRealizeSeid buffId", LoopRealizeCountsByBuffId);
+        LogTopSummary("battle summary top Buff.loopRealizeSeid seid", LoopRealizeCountsBySeid);
+        LogTopSummary("battle summary top Buff.ListRealizeSeid71 buffId", ListRealizeCountsByBuffId);
+        LogTopSummary("battle summary top Buff.ListRealizeSeid71 seid", ListRealizeCountsBySeid);
+
+        LastSummaryTrackedEvents = TotalTrackedEvents;
     }
 
     public static void LogVerbose(string message)
@@ -208,6 +270,8 @@ internal static class LongLiveBattleTraceRuntime
         }
 
         var avatarKey = BuildAvatarKey(avatar);
+        IncrementCounter(BattleEventCounts, "negative-hp.write");
+        IncrementCounter(NegativeHpHitCountsByAvatar, avatarKey);
         if (!NegativeHpHitCounts.TryGetValue(avatarKey, out var count))
         {
             count = 0;
@@ -244,6 +308,8 @@ internal static class LongLiveBattleTraceRuntime
 
         var avatarKey = BuildAvatarKey(avatar);
         NegativeHpHitCounts.TryGetValue(avatarKey, out var count);
+        IncrementCounter(BattleEventCounts, "dead-target.damage-attempt");
+        IncrementCounter(DamageAttemptCountsBySkillId, NormalizePositiveKey(skillId));
         Log($"dead-target damage-attempt: source={source}, skillId={skillId}, damage={damage}, priorNegativeHits={count}, {DescribeAvatarState(avatar)}");
     }
 
@@ -261,7 +327,47 @@ internal static class LongLiveBattleTraceRuntime
         }
 
         NegativeHpHitCounts.TryGetValue(BuildAvatarKey(avatar), out var count);
+        IncrementCounter(BattleEventCounts, "dead-avatar.reentry");
+        IncrementCounter(DeadAvatarReentryCountsBySource, source);
         Log($"dead-avatar reentry: source={source}, priorNegativeHits={count}, {DescribeAvatarState(avatar)}");
+    }
+
+    public static void TrackBattlePhase(string source)
+    {
+        IncrementCounter(BattleEventCounts, source);
+    }
+
+    public static void TrackDamageInvocation(int skillId, string source)
+    {
+        IncrementCounter(BattleEventCounts, source);
+        IncrementCounter(DamageInvocationCountsBySkillId, NormalizePositiveKey(skillId));
+    }
+
+    public static void TrackBuffListRealize(object? buff, int seid)
+    {
+        IncrementCounter(BattleEventCounts, "Buff.ListRealizeSeid71");
+        IncrementCounter(ListRealizeCountsByBuffId, NormalizePositiveKey(TryReadBuffId(buff)));
+        IncrementCounter(ListRealizeCountsBySeid, NormalizePositiveKey(seid));
+    }
+
+    public static void TrackBuffLoopRealize(object? buff, int seid)
+    {
+        IncrementCounter(BattleEventCounts, "Buff.loopRealizeSeid");
+        IncrementCounter(LoopRealizeCountsByBuffId, NormalizePositiveKey(TryReadBuffId(buff)));
+        IncrementCounter(LoopRealizeCountsBySeid, NormalizePositiveKey(seid));
+    }
+
+    public static void TrackBuffOnLoopTrigger(object? buff, object? buffLoopData)
+    {
+        IncrementCounter(BattleEventCounts, "Buff.onLoopTrigger");
+        IncrementCounter(ReentryCountsByBuffId, NormalizePositiveKey(TryReadBuffId(buff)));
+        IncrementCounter(ReentryCountsBySeid, NormalizePositiveKey(TryReadLoopSeid(buffLoopData) ?? TryReadBuffSeid(buff)));
+    }
+
+    public static void TrackSpellTick(IReadOnlyList<int>? flag)
+    {
+        IncrementCounter(BattleEventCounts, "Spell.onBuffTick");
+        IncrementCounter(SpellTickCountsBySkillId, NormalizePositiveKey(TryExtractFlagSkillId(flag)));
     }
 
     public static bool ShouldBlockPostDeathBattleReentry(object? avatar, string source)
@@ -282,6 +388,7 @@ internal static class LongLiveBattleTraceRuntime
             return false;
         }
 
+        IncrementCounter(BattleEventCounts, "battle-guard.blocked-reentry");
         Log($"battle-guard blocked post-death reentry: source={source}, {DescribeAvatarState(typedAvatar)}");
         return true;
     }
@@ -298,6 +405,8 @@ internal static class LongLiveBattleTraceRuntime
             return false;
         }
 
+        IncrementCounter(BattleEventCounts, "battle-guard.blocked-damage");
+        IncrementCounter(GuardBlockedDamageCountsBySkillId, NormalizePositiveKey(skillId));
         if (skillId > 0)
         {
             GuardedSkillIds.Add(skillId);
@@ -324,6 +433,8 @@ internal static class LongLiveBattleTraceRuntime
             return false;
         }
 
+        IncrementCounter(BattleEventCounts, "battle-guard.blocked-spell-tick");
+        IncrementCounter(GuardBlockedSpellTickCountsBySkillId, NormalizePositiveKey(skillId));
         Log($"battle-guard blocked spell tick: source={source}, skillId={skillId.Value}, flag={DescribeIntList(flag)}");
         return true;
     }
@@ -571,6 +682,164 @@ internal static class LongLiveBattleTraceRuntime
         var hpMax = TryGetIntMember(avatar, "HP_Max")?.ToString() ?? "?";
         var baseHpMax = TryGetIntMember(avatar, "_HP_Max")?.ToString() ?? "?";
         return name + '|' + hpMax + '|' + baseHpMax;
+    }
+
+    private static int NormalizePositiveKey(int? value)
+    {
+        return value.HasValue && value.Value > 0 ? value.Value : 0;
+    }
+
+    private static int? TryReadBuffId(object? buff)
+    {
+        return TryGetIntMember(buff, "buffID") ?? TryGetIntMember(buff, "BuffID");
+    }
+
+    private static int? TryReadBuffSeid(object? buff)
+    {
+        return TryGetIntMember(buff, "seid") ?? TryGetIntMember(buff, "Seid");
+    }
+
+    private static int? TryReadLoopSeid(object? buffLoopData)
+    {
+        return TryGetIntMember(buffLoopData, "seid") ?? TryGetIntMember(buffLoopData, "Seid");
+    }
+
+    private static void IncrementCounter(Dictionary<string, int> counts, string key)
+    {
+        TotalTrackedEvents++;
+        if (!counts.TryGetValue(key, out var count))
+        {
+            count = 0;
+        }
+
+        counts[key] = count + 1;
+    }
+
+    private static void IncrementCounter(Dictionary<int, int> counts, int key)
+    {
+        TotalTrackedEvents++;
+        if (!counts.TryGetValue(key, out var count))
+        {
+            count = 0;
+        }
+
+        counts[key] = count + 1;
+    }
+
+    private static string FormatBattleEventTotals()
+    {
+        var ordered = new List<KeyValuePair<string, int>>(BattleEventCounts);
+        ordered.Sort((left, right) =>
+        {
+            var countCompare = right.Value.CompareTo(left.Value);
+            return countCompare != 0 ? countCompare : string.CompareOrdinal(left.Key, right.Key);
+        });
+
+        const int maxItems = 12;
+        var take = Math.Min(ordered.Count, maxItems);
+        var parts = new List<string>(take);
+        for (var index = 0; index < take; index++)
+        {
+            var pair = ordered[index];
+            parts.Add(pair.Key + '=' + pair.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        if (parts.Count == 0)
+        {
+            return "none";
+        }
+
+        if (ordered.Count > maxItems)
+        {
+            parts.Add("...");
+        }
+
+        return string.Join(", ", parts);
+    }
+
+    private static void LogTopSummary(string label, Dictionary<string, int> counts)
+    {
+        var summary = FormatTopSummary(counts);
+        if (summary == null)
+        {
+            return;
+        }
+
+        Log(label + ": " + summary);
+    }
+
+    private static void LogTopSummary(string label, Dictionary<int, int> counts)
+    {
+        var summary = FormatTopSummary(counts);
+        if (summary == null)
+        {
+            return;
+        }
+
+        Log(label + ": " + summary);
+    }
+
+    private static string? FormatTopSummary(Dictionary<string, int> counts)
+    {
+        if (counts.Count == 0)
+        {
+            return null;
+        }
+
+        var ordered = new List<KeyValuePair<string, int>>(counts);
+        ordered.Sort((left, right) =>
+        {
+            var countCompare = right.Value.CompareTo(left.Value);
+            return countCompare != 0 ? countCompare : string.CompareOrdinal(left.Key, right.Key);
+        });
+
+        const int maxItems = 5;
+        var take = Math.Min(ordered.Count, maxItems);
+        var parts = new List<string>(take);
+        for (var index = 0; index < take; index++)
+        {
+            var pair = ordered[index];
+            parts.Add(pair.Key + '=' + pair.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        if (ordered.Count > maxItems)
+        {
+            parts.Add("...");
+        }
+
+        return string.Join(", ", parts);
+    }
+
+    private static string? FormatTopSummary(Dictionary<int, int> counts)
+    {
+        if (counts.Count == 0)
+        {
+            return null;
+        }
+
+        var ordered = new List<KeyValuePair<int, int>>(counts);
+        ordered.Sort((left, right) =>
+        {
+            var countCompare = right.Value.CompareTo(left.Value);
+            return countCompare != 0 ? countCompare : left.Key.CompareTo(right.Key);
+        });
+
+        const int maxItems = 5;
+        var take = Math.Min(ordered.Count, maxItems);
+        var parts = new List<string>(take);
+        for (var index = 0; index < take; index++)
+        {
+            var pair = ordered[index];
+            var keyLabel = pair.Key == 0 ? "unknown" : pair.Key.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            parts.Add(keyLabel + '=' + pair.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        if (ordered.Count > maxItems)
+        {
+            parts.Add("...");
+        }
+
+        return string.Join(", ", parts);
     }
 
     private static string CaptureCompactStackTrace()

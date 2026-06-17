@@ -254,6 +254,37 @@ After that wider short-circuit was enabled, the same high-damage multi-hit test 
 
 That is the strongest current indication that the lag root cause is a post-lethal skill-tick dispatch storm rather than only negative HP storage.
 
+### Finding J: Broad detection is now practical without skill-by-skill manual testing
+
+The tracing layer now also emits automatic battle-level summaries at important combat checkpoints.
+
+Current checkpoints include:
+
+- `Fight.FightResultMag.ShowVictory()`
+- `Fight.FightVictory.SetVictory()`
+- `Avatar.die()`
+- the next `ResetBattleState()` before a later fight begins
+
+Each summary is intended to answer a broader question:
+
+- which avatars reached repeated negative-HP writes most often
+- which `skillId` values dominated damage attempts or `recvDamage(...)`
+- which `skillId` values dominated `Spell.onBuffTick(...)`
+- which `skillId` values were actually blocked by the experimental guard
+- which `buffID` and `seid` values dominated `Buff.onLoopTrigger(...)`, `Buff.loopRealizeSeid(...)`, and `Buff.ListRealizeSeid71(...)`
+
+This is important for the next validation stage.
+
+The user does not currently have reliable manual familiarity with every in-game skill path that might trigger the problem.
+
+So future validation should prefer:
+
+- broader battle sampling
+- automatic top-counter inspection
+- identifying recurrent high-volume `skillId` / `buffID` / `seid` clusters from summary output
+
+instead of assuming one manually reproduced skill is representative of the entire combat system.
+
 ## 5. Representative Trace Evidence
 
 ### Case 1: High-damage skill against `墨蛟`
