@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>LongLive.Next.Abstractions</AssemblyName>
+    <RootNamespace>LongLive.Next.Abstractions</RootNamespace>
+  </PropertyGroup>
+</Project>
