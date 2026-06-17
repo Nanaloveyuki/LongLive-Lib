@@ -1,0 +1,3 @@
+[workspace]
+members = ["longlive-native-core"]
+resolver = "2"
