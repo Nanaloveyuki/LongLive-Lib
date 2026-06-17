@@ -2,6 +2,7 @@ using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
+using LongLive.BepInEx.Native;
 using LongLive.Next.Runtime;
 
 namespace LongLive.BepInEx.Plugin;
@@ -10,6 +11,7 @@ namespace LongLive.BepInEx.Plugin;
 public sealed class LongLivePlugin : BaseUnityPlugin
 {
     private Harmony? _harmony;
+    private LongLiveNativeService? _native;
     private NextRuntimeFacade? _runtime;
     private LongLiveBootstrapper? _bootstrapper;
     private LongLiveHostOptions? _options;
@@ -19,6 +21,8 @@ public sealed class LongLivePlugin : BaseUnityPlugin
     internal static ManualLogSource? LogSource { get; private set; }
 
     public NextRuntimeFacade Runtime => _runtime ??= NextRuntimeFactory.Create();
+
+    public LongLiveNativeService Native => _native ??= new LongLiveNativeService(Logger);
 
     public LongLiveHostOptions Options => _options ??= CreateOptions();
 
@@ -30,7 +34,22 @@ public sealed class LongLivePlugin : BaseUnityPlugin
         Logger.LogInfo($"{LongLivePluginMetadata.PluginName} plugin awake.");
         _harmony = new Harmony(LongLivePluginMetadata.PluginGuid);
         _harmony.PatchAll(typeof(LongLivePlugin).Assembly);
-        _bootstrapper = new LongLiveBootstrapper(Logger, Runtime, Options);
+
+        if (Options.EnableBattleTrace.Value && Options.EnableDebugLogging.Value)
+        {
+            Logger.LogInfo($"LongLive battle trace enabled. verbose={Options.EnableBattleTraceVerbose.Value}");
+        }
+        else if (Options.EnableBattleTrace.Value)
+        {
+            Logger.LogInfo("LongLive battle trace requested, but debug logging is disabled. Battle trace remains inactive.");
+        }
+
+        if (Options.EnableExperimentalBattleGuard.Value)
+        {
+            Logger.LogInfo("LongLive experimental battle guard enabled. Non-player post-death Buff/Spell re-entry short-circuit is active.");
+        }
+
+        _bootstrapper = new LongLiveBootstrapper(Logger, Runtime, Native, Options);
         _bootstrapper.Initialize();
     }
 
@@ -74,6 +93,24 @@ public sealed class LongLivePlugin : BaseUnityPlugin
             string.Empty,
             "Optional explicit path to longlive_native_core.dll used by the native probe installer.");
 
+        var enableBattleTrace = Config.Bind(
+            "LongLive",
+            "EnableBattleTrace",
+            false,
+            "Enable read-only Harmony battle tracing for fight entry, round flow, and skill usage. Effective only when EnableDebugLogging is also true.");
+
+        var enableBattleTraceVerbose = Config.Bind(
+            "LongLive",
+            "EnableBattleTraceVerbose",
+            false,
+            "Enable additional battle trace detail such as runtime field inventories and method snapshots. Effective only when both EnableDebugLogging and EnableBattleTrace are true.");
+
+        var enableExperimentalBattleGuard = Config.Bind(
+            "LongLive",
+            "EnableExperimentalBattleGuard",
+            false,
+            "Enable an experimental non-player post-death battle guard that skips further Buff/Spell re-entry once a target is already dead or at HP <= 0.");
+
         var enableDemoCommandRegistration = Config.Bind(
             "LongLive",
             "EnableDemoCommandRegistration",
@@ -109,6 +146,9 @@ public sealed class LongLivePlugin : BaseUnityPlugin
             enableContentRuntimeInspection,
             enableNativeProbe,
             nativeLibraryPath,
+            enableBattleTrace,
+            enableBattleTraceVerbose,
+            enableExperimentalBattleGuard,
             enableDemoCommandRegistration,
             enableDemoQueryRegistration,
             enableJsonModDemoInstall,

@@ -31,6 +31,17 @@ The optional JSON-mod demo bootstrap is also explicit opt-in:
 - set `JsonModDemoPath` to a real package directory
 - optionally set `ContentBackend` to `Deferred` or `Next`
 
+There is also an optional experimental battle safety switch:
+
+- enable `EnableExperimentalBattleGuard`
+
+Current behavior of the experimental guard:
+
+- it targets non-player combat avatars only
+- it short-circuits confirmed post-death `recvDamage(...)`, `Buff.*`, and later `Spell.onBuffTick(...)` re-entry for the same marked skill path
+- it is intended to reduce battle stalls and repeated audio storms caused by runaway post-death processing
+- it is not meant to be a final combat rebalance system
+
 There is also an optional read-only runtime inspection path:
 
 - enable `EnableContentRuntimeInspection`

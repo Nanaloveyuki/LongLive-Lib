@@ -9,6 +9,9 @@ public sealed class LongLiveHostOptions
         ConfigEntry<bool> enableContentRuntimeInspection,
         ConfigEntry<bool> enableNativeProbe,
         ConfigEntry<string> nativeLibraryPath,
+        ConfigEntry<bool> enableBattleTrace,
+        ConfigEntry<bool> enableBattleTraceVerbose,
+        ConfigEntry<bool> enableExperimentalBattleGuard,
         ConfigEntry<bool> enableDemoCommandRegistration,
         ConfigEntry<bool> enableDemoQueryRegistration,
         ConfigEntry<bool> enableJsonModDemoInstall,
@@ -19,6 +22,9 @@ public sealed class LongLiveHostOptions
         EnableContentRuntimeInspection = enableContentRuntimeInspection;
         EnableNativeProbe = enableNativeProbe;
         NativeLibraryPath = nativeLibraryPath;
+        EnableBattleTrace = enableBattleTrace;
+        EnableBattleTraceVerbose = enableBattleTraceVerbose;
+        EnableExperimentalBattleGuard = enableExperimentalBattleGuard;
         EnableDemoCommandRegistration = enableDemoCommandRegistration;
         EnableDemoQueryRegistration = enableDemoQueryRegistration;
         EnableJsonModDemoInstall = enableJsonModDemoInstall;
@@ -33,6 +39,12 @@ public sealed class LongLiveHostOptions
     public ConfigEntry<bool> EnableNativeProbe { get; }
 
     public ConfigEntry<string> NativeLibraryPath { get; }
+
+    public ConfigEntry<bool> EnableBattleTrace { get; }
+
+    public ConfigEntry<bool> EnableBattleTraceVerbose { get; }
+
+    public ConfigEntry<bool> EnableExperimentalBattleGuard { get; }
 
     public ConfigEntry<bool> EnableDemoCommandRegistration { get; }
 

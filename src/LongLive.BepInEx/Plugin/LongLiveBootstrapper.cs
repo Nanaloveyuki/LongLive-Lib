@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using BepInEx.Logging;
+using LongLive.BepInEx.Native;
 using LongLive.Next.Abstractions.State;
 using LongLive.Next.Runtime;
 using UnityEngine.SceneManagement;
@@ -10,6 +11,7 @@ namespace LongLive.BepInEx.Plugin;
 public sealed class LongLiveBootstrapper
 {
     private readonly ManualLogSource _logger;
+    private readonly LongLiveNativeService _native;
     private readonly NextRuntimeFacade _runtime;
     private readonly LongLiveHostOptions _options;
     private readonly IReadOnlyList<ILongLiveInstaller> _installers;
@@ -17,16 +19,18 @@ public sealed class LongLiveBootstrapper
     private bool _runtimeInstallCompleted;
     private bool _sceneHookRegistered;
 
-    public LongLiveBootstrapper(ManualLogSource logger, NextRuntimeFacade runtime, LongLiveHostOptions options)
+    public LongLiveBootstrapper(ManualLogSource logger, NextRuntimeFacade runtime, LongLiveNativeService native, LongLiveHostOptions options)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
+        _native = native ?? throw new ArgumentNullException(nameof(native));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _installers = new ILongLiveInstaller[]
         {
+            new LongLiveBattleTraceInstaller(_logger, _options),
             new LongLiveMainMenuEntryInstaller(_logger, _runtime, _options),
             new LongLiveContentInspectionInstaller(_logger, _runtime, _options),
-            new LongLiveNativeProbeInstaller(_logger, _options),
+            new LongLiveNativeProbeInstaller(_logger, _native, _options),
             new LongLiveDemoInstaller(_logger, _runtime, _options),
             new LongLiveJsonModDemoInstaller(_logger, _runtime, _options),
         };
