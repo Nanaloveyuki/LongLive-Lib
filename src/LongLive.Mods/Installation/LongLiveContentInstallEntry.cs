@@ -8,6 +8,7 @@ public sealed class LongLiveContentInstallEntry
         string contentType,
         string contentId,
         LongLiveContentInstallStatus status,
+        string reasonCode,
         string message)
     {
         if (string.IsNullOrWhiteSpace(contentType))
@@ -23,6 +24,7 @@ public sealed class LongLiveContentInstallEntry
         ContentType = contentType;
         ContentId = contentId;
         Status = status;
+        ReasonCode = string.IsNullOrWhiteSpace(reasonCode) ? LongLiveContentInstallReasonCode.None : reasonCode;
         Message = message ?? string.Empty;
     }
 
@@ -31,6 +33,8 @@ public sealed class LongLiveContentInstallEntry
     public string ContentId { get; }
 
     public LongLiveContentInstallStatus Status { get; }
+
+    public string ReasonCode { get; }
 
     public string Message { get; }
 }

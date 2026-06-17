@@ -36,6 +36,12 @@ public sealed class NextCommandRegistry : INextCommandRegistry
             throw new ArgumentNullException(nameof(handler));
         }
 
+        if (!NextDialogEventProxyFactory.IsSupported)
+        {
+            throw new PlatformNotSupportedException(
+                "LongLive.Next command registration currently requires dynamic proxy generation, which is unavailable on the current host runtime.");
+        }
+
         var dialogEventInterfaceType = _bridge.ResolveRequiredType(DialogEventInterfaceTypeName);
         var adapter = new NextCommandHandlerAdapter(_bridge, commandName, handler);
         var proxy = NextDialogEventProxyFactory.Create(dialogEventInterfaceType, adapter);

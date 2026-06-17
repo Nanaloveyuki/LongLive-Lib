@@ -7,6 +7,7 @@ using LongLive.Next.Abstractions.UI;
 using LongLive.Next.Runtime.Commands;
 using LongLive.Next.Runtime.Events;
 using LongLive.Next.Runtime.Internal;
+using LongLive.Next.Runtime.Inspection;
 using LongLive.Next.Runtime.Localization;
 using LongLive.Next.Runtime.Queries;
 using LongLive.Next.Runtime.State;
@@ -32,6 +33,7 @@ public sealed class NextRuntimeFacade
         QueryRegistry = new NextQueryRegistry(_bridge);
         Ui = new NextUiService(_bridge);
         Localization = new NextLocalizationService(_bridge);
+        ContentInspector = new NextContentRuntimeInspector(_bridge);
     }
 
     public bool IsAvailable => _bridge.IsAvailable;
@@ -47,4 +49,6 @@ public sealed class NextRuntimeFacade
     public INextUiService Ui { get; }
 
     public INextLocalizationService Localization { get; }
+
+    public NextContentRuntimeInspector ContentInspector { get; }
 }

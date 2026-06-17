@@ -36,6 +36,12 @@ public sealed class NextQueryRegistry : INextQueryRegistry
             throw new ArgumentNullException(nameof(handler));
         }
 
+        if (!NextDialogEnvQueryProxyFactory.IsSupported)
+        {
+            throw new PlatformNotSupportedException(
+                "LongLive.Next query registration currently requires dynamic proxy generation, which is unavailable on the current host runtime.");
+        }
+
         var dialogEnvQueryInterfaceType = _bridge.ResolveRequiredType(DialogEnvQueryInterfaceTypeName);
         var adapter = new NextQueryHandlerAdapter(_bridge, handler);
         var proxy = NextDialogEnvQueryProxyFactory.Create(dialogEnvQueryInterfaceType, adapter);

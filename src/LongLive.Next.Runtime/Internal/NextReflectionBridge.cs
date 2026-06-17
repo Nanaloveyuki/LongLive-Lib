@@ -10,16 +10,14 @@ internal sealed class NextReflectionBridge
     private const string HelperTypeName = "SkySwordKill.Next.Helper";
     private const string DialogAnalysisTypeName = "SkySwordKill.Next.DialogSystem.DialogAnalysis";
 
-    private readonly Lazy<Type?> _helperType;
-    private readonly Lazy<Type?> _dialogAnalysisType;
+    private Type? _helperType;
+    private Type? _dialogAnalysisType;
 
     public NextReflectionBridge()
     {
-        _helperType = new Lazy<Type?>(() => ResolveTypeCore(HelperTypeName));
-        _dialogAnalysisType = new Lazy<Type?>(() => ResolveTypeCore(DialogAnalysisTypeName));
     }
 
-    public bool IsAvailable => _helperType.Value is not null && _dialogAnalysisType.Value is not null;
+    public bool IsAvailable => GetHelperType() is not null && GetDialogAnalysisType() is not null;
 
     public Type ResolveRequiredType(string fullName)
     {
@@ -33,22 +31,22 @@ internal sealed class NextReflectionBridge
 
     public object? InvokeHelper(string methodName, params object?[]? arguments)
     {
-        return InvokeRequiredMethod(_helperType.Value, methodName, arguments);
+        return InvokeRequiredMethod(GetHelperType(), methodName, arguments);
     }
 
     public object? InvokeDialogAnalysis(string methodName, params object?[]? arguments)
     {
-        return InvokeRequiredMethod(_dialogAnalysisType.Value, methodName, arguments);
+        return InvokeRequiredMethod(GetDialogAnalysisType(), methodName, arguments);
     }
 
     public object? InvokeDialogAnalysisNonPublic(string methodName, params object?[]? arguments)
     {
-        return InvokeRequiredMethod(_dialogAnalysisType.Value, methodName, BindingFlags.NonPublic | BindingFlags.Static, arguments);
+        return InvokeRequiredMethod(GetDialogAnalysisType(), methodName, BindingFlags.NonPublic | BindingFlags.Static, arguments);
     }
 
     public T GetDialogAnalysisProperty<T>(string propertyName, T fallback = default!)
     {
-        var type = _dialogAnalysisType.Value;
+        var type = GetDialogAnalysisType();
         if (type is null)
         {
             throw CreateUnavailableException();
@@ -130,6 +128,16 @@ internal sealed class NextReflectionBridge
         }
 
         return null;
+    }
+
+    private Type? GetHelperType()
+    {
+        return _helperType ??= ResolveTypeCore(HelperTypeName);
+    }
+
+    private Type? GetDialogAnalysisType()
+    {
+        return _dialogAnalysisType ??= ResolveTypeCore(DialogAnalysisTypeName);
     }
 
     private static object? InvokeRequiredMethod(Type? type, string methodName, object?[]? arguments)

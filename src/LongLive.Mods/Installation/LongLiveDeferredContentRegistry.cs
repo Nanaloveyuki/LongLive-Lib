@@ -15,6 +15,7 @@ public sealed class LongLiveDeferredContentRegistry : ILongLiveContentRegistry
         return CreateDeferredEntry(
             "item",
             request.Content.Id.ToString(),
+            LongLiveContentInstallReasonCode.DeferredBackend,
             $"Item runtime injection is not installed yet for mod {request.Context.Manifest.Id}.");
     }
 
@@ -28,6 +29,7 @@ public sealed class LongLiveDeferredContentRegistry : ILongLiveContentRegistry
         return CreateDeferredEntry(
             "skill",
             request.Content.Id.ToString(),
+            LongLiveContentInstallReasonCode.DeferredBackend,
             $"Skill runtime injection is not installed yet for mod {request.Context.Manifest.Id}.");
     }
 
@@ -41,6 +43,7 @@ public sealed class LongLiveDeferredContentRegistry : ILongLiveContentRegistry
         return CreateDeferredEntry(
             "buff",
             request.Content.Id.ToString(),
+            LongLiveContentInstallReasonCode.DeferredBackend,
             $"Buff runtime injection is not installed yet for mod {request.Context.Manifest.Id}.");
     }
 
@@ -54,11 +57,12 @@ public sealed class LongLiveDeferredContentRegistry : ILongLiveContentRegistry
         return CreateDeferredEntry(
             "asset",
             request.Content.Id,
+            LongLiveContentInstallReasonCode.DeferredBackend,
             $"Asset mapping installation is not installed yet for mod {request.Context.Manifest.Id}. Root={request.Context.RootDirectory}");
     }
 
-    private static LongLiveContentInstallEntry CreateDeferredEntry(string contentType, string contentId, string message)
+    private static LongLiveContentInstallEntry CreateDeferredEntry(string contentType, string contentId, string reasonCode, string message)
     {
-        return new LongLiveContentInstallEntry(contentType, contentId, LongLiveContentInstallStatus.Deferred, message);
+        return new LongLiveContentInstallEntry(contentType, contentId, LongLiveContentInstallStatus.Deferred, reasonCode, message);
     }
 }
