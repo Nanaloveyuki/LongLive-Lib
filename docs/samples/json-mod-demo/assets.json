@@ -1,0 +1,11 @@
+{
+  "assets": [
+    {
+      "id": "demo-npc-portrait",
+      "kind": "portrait",
+      "target": "npc:900001",
+      "source": "assets/portraits/demo-npc.png",
+      "mode": "replace"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "id": 900001,
+      "name": "Demo Spirit Pill",
+      "description": "A simple demo item.",
+      "info": "Restores a small amount of spirit.",
+      "icon": 101,
+      "itemType": 5,
+      "quality": 1,
+      "phase": 1,
+      "maxStack": 99,
+      "price": 120,
+      "seid": [1001],
+      "affix": [],
+      "flags": []
+    }
+  ]
+}
