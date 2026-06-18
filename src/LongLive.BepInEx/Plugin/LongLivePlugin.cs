@@ -111,6 +111,24 @@ public sealed class LongLivePlugin : BaseUnityPlugin
             false,
             "Enable an experimental non-player post-death battle guard that skips further Buff/Spell re-entry once a target is already dead or at HP <= 0.");
 
+        var enableBulkItemUseOptimization = Config.Bind(
+            "LongLive",
+            "EnableBulkItemUseOptimization",
+            true,
+            "Enable LongLive bulk-item-use smoothing and pop-tip cleanup for large consumable batches.");
+
+        var bulkItemUseChunkSize = Config.Bind(
+            "LongLive",
+            "BulkItemUseChunkSize",
+            24,
+            "Maximum number of item.Use() calls processed per frame when LongLive bulk-item-use smoothing is active.");
+
+        var bulkItemUseFrameBudgetMs = Config.Bind(
+            "LongLive",
+            "BulkItemUseFrameBudgetMs",
+            3.0f,
+            "Approximate per-frame time budget in milliseconds for LongLive bulk-item-use processing.");
+
         var enableDemoCommandRegistration = Config.Bind(
             "LongLive",
             "EnableDemoCommandRegistration",
@@ -149,6 +167,9 @@ public sealed class LongLivePlugin : BaseUnityPlugin
             enableBattleTrace,
             enableBattleTraceVerbose,
             enableExperimentalBattleGuard,
+            enableBulkItemUseOptimization,
+            bulkItemUseChunkSize,
+            bulkItemUseFrameBudgetMs,
             enableDemoCommandRegistration,
             enableDemoQueryRegistration,
             enableJsonModDemoInstall,

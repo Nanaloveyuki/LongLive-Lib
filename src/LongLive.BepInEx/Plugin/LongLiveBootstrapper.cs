@@ -28,6 +28,7 @@ public sealed class LongLiveBootstrapper
         _installers = new ILongLiveInstaller[]
         {
             new LongLiveBattleTraceInstaller(_logger, _options),
+            new LongLiveBulkItemUseInstaller(_logger, _options),
             new LongLiveMainMenuEntryInstaller(_logger, _runtime, _options),
             new LongLiveContentInspectionInstaller(_logger, _runtime, _options),
             new LongLiveNativeProbeInstaller(_logger, _native, _options),
@@ -72,6 +73,7 @@ public sealed class LongLiveBootstrapper
         }
 
         _logger.LogInfo("LongLive host bootstrap shutting down.");
+        LongLiveBulkItemUseRuntime.OnPluginShutdown();
         _initialized = false;
         _runtimeInstallCompleted = false;
     }
@@ -89,6 +91,8 @@ public sealed class LongLiveBootstrapper
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        LongLiveBulkItemUseRuntime.OnSceneLoaded(scene);
+
         if (_options.EnableDebugLogging.Value)
         {
             _logger.LogInfo($"LongLive observed scene load: {scene.name}, nextAvailable={_runtime.IsAvailable}");
