@@ -61,11 +61,16 @@ Title:
 
 Short description direction:
 
+- Chinese-first or bilingual wording is recommended
 - installs the LongLive host and bridge together
 - adds the LongLive diagnostics entry
 - includes host and bridge status reporting
 - includes bulk item-use optimization
 - native core is not required for `0.1.0`
+
+Suggested description text:
+
+- `LongLive Lib 主程序与兼容桥接。提供诊断入口、批量使用物品优化，以及 Host / Bridge 状态提示。LongLive host and compatibility bridge with diagnostics, bulk item-use optimization, and Host / Bridge status reporting.`
 
 ## 5. After Upload
 

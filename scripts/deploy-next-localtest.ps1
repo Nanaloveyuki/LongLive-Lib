@@ -5,7 +5,7 @@
     [string]$LocalTestGroupName = "LongLive.LocalTest",
     [string]$NextModName = "modLongLiveBridge",
     [string]$DisplayName = "LongLive Lib",
-    [string]$Description = "Bridge shell and setup reminder for LongLive Lib.",
+    [string]$Description = "LongLive Lib \u4e3b\u7a0b\u5e8f\u4e0e\u517c\u5bb9\u6865\u63a5\u3002LongLive Host and compatibility bridge.",
     [switch]$DisableMissingHostReminder,
     [switch]$SkipBridgePackage,
     [switch]$SkipJsonDemo
@@ -66,8 +66,8 @@ $modConfig = @'
     {
       "Type": "Toggle",
       "Key": "longlive.bridge.enable_missing_host_reminder",
-      "Name": "Host Setup Reminder",
-      "Description": "Show a reminder if LongLive Host is missing or incompatible.",
+      "Name": "Host \u5b89\u88c5\u63d0\u793a",
+      "Description": "\u7f3a\u5c11\u6216\u4e0d\u517c\u5bb9 LongLive Host \u65f6\u663e\u793a\u63d0\u793a\u3002Show a reminder if LongLive Host is missing or incompatible.",
       "DefaultValue": __ENABLE_MISSING_HOST_REMINDER__
     }
   ]

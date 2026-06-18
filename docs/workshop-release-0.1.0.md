@@ -155,12 +155,17 @@ Suggested dependency:
 
 Suggested description points:
 
+- Chinese-first or bilingual wording is recommended for this workshop community
 - installs the LongLive host plugin and compatibility bridge together
 - adds the LongLive diagnostics entry on the main menu
 - includes Host and Bridge state reporting
 - includes bulk item-use optimization
 - includes battle guard groundwork and map diagnostics as internal host capabilities
 - native core is not required for `0.1.0`
+
+Suggested short bilingual description:
+
+- `LongLive Lib 主程序与兼容桥接。提供诊断入口、批量使用物品优化，以及 Host / Bridge 状态提示。LongLive host and compatibility bridge with diagnostics, bulk item-use optimization, and Host / Bridge status reporting.`
 
 ## 10. After Upload
 
