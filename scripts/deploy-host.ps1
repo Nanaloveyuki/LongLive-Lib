@@ -1,6 +1,7 @@
 param(
     [string]$Configuration = "Debug",
-    [string]$PluginsDir = ""
+    [string]$PluginsDir = "",
+    [switch]$SkipNative
 )
 
 $ErrorActionPreference = "Stop"
@@ -120,7 +121,7 @@ try {
     }
 
     $nativeLibraryPath = Join-Path $repoRoot 'native\target\debug\longlive_native_core.dll'
-    if (Test-Path $nativeLibraryPath) {
+    if (-not $SkipNative -and (Test-Path $nativeLibraryPath)) {
         try {
             Copy-Item -LiteralPath $nativeLibraryPath -Destination (Join-Path $resolvedPluginsDir 'longlive_native_core.dll') -Force
         }
@@ -129,7 +130,8 @@ try {
         }
     }
 
-    Write-Host "Deployed LongLive.BepInEx to: $resolvedPluginsDir"
+    Write-Host "Deployed LongLive.Host to: $resolvedPluginsDir"
+    Write-Host "This script deploys the BepInEx host layer only. Use deploy-next-localtest.ps1 for the separate Next/local-test shell."
 }
 finally {
     Pop-Location

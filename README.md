@@ -3,6 +3,11 @@
 `LongLive-Lib` is an experimental library repository for the Tale of Immortal mod ecosystem.
 Its current direction is to build a cleaner and more maintainable developer-facing layer on top of `BepInEx` and `Next`.
 
+In practical terms, the repository is converging on a layered runtime model:
+
+- `LongLive.Host` in `BepInEx/plugins`
+- future `LongLive.Bridge` or content shells in the normal `Next` mod path
+
 At this stage, the repository is intentionally lightweight. The focus is on source study, API inventory, project boundaries, and a minimal compile-ready skeleton, not on a full production framework yet.
 
 ## Current Status
@@ -39,6 +44,8 @@ The current working split is:
 - [`docs/next-runtime-usage.md`](./docs/next-runtime-usage.md): current usage patterns for the bootstrap runtime facade
 - [`docs/next-runtime-examples.md`](./docs/next-runtime-examples.md): short examples for the facade, extensions, and state-key helpers
 - [`docs/bepinex-host-bootstrap.md`](./docs/bepinex-host-bootstrap.md): current `LongLive.BepInEx` host bootstrap strategy
+- [`docs/distribution-and-bridge-strategy.md`](./docs/distribution-and-bridge-strategy.md): planned Host, Bridge, and content-package distribution model
+- [`docs/bridge-host-state-contract.md`](./docs/bridge-host-state-contract.md): published Next-state contract for Bridge-side host detection
 - [`docs/mod-schema-draft.md`](./docs/mod-schema-draft.md): first draft of the declarative JSON-mod schema
 - [`docs/mod-loader-usage.md`](./docs/mod-loader-usage.md): current usage pattern for JSON-mod loading and validation
 - [`docs/content-schema-draft.md`](./docs/content-schema-draft.md): first draft of content-oriented JSON-mod declarations

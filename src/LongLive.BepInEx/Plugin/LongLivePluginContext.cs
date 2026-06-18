@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using LongLive.Next.Runtime;
@@ -40,5 +41,39 @@ public static class LongLivePluginContext
         }
 
         return plugin.Options;
+    }
+
+    public static bool TryGetHostHandshake(out LongLiveHostHandshake? handshake)
+    {
+        var plugin = LongLivePlugin.Instance;
+        if (plugin is null)
+        {
+            handshake = null;
+            return false;
+        }
+
+        handshake = plugin.RefreshHandshake();
+        return true;
+    }
+
+    public static LongLiveHostHandshake GetHostHandshake()
+    {
+        var plugin = LongLivePlugin.Instance;
+        if (plugin is null)
+        {
+            throw new InvalidOperationException("LongLivePlugin has not been initialized yet.");
+        }
+
+        return plugin.RefreshHandshake();
+    }
+
+    public static bool HasCapability(string capability)
+    {
+        return TryGetHostHandshake(out var handshake) && handshake is not null && handshake.Supports(capability);
+    }
+
+    public static IReadOnlyCollection<string> GetCapabilities()
+    {
+        return GetHostHandshake().Capabilities;
     }
 }

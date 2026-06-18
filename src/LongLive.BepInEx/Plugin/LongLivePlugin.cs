@@ -15,6 +15,7 @@ public sealed class LongLivePlugin : BaseUnityPlugin
     private NextRuntimeFacade? _runtime;
     private LongLiveBootstrapper? _bootstrapper;
     private LongLiveHostOptions? _options;
+    private LongLiveHostHandshake? _handshake;
 
     internal static LongLivePlugin? Instance { get; private set; }
 
@@ -25,6 +26,14 @@ public sealed class LongLivePlugin : BaseUnityPlugin
     public LongLiveNativeService Native => _native ??= new LongLiveNativeService(Logger);
 
     public LongLiveHostOptions Options => _options ??= CreateOptions();
+
+    public LongLiveHostHandshake Handshake => _handshake ??= LongLiveHostHandshakeFactory.Create(this);
+
+    internal LongLiveHostHandshake RefreshHandshake()
+    {
+        _handshake = LongLiveHostHandshakeFactory.Create(this);
+        return _handshake;
+    }
 
     private void Awake()
     {
@@ -51,6 +60,12 @@ public sealed class LongLivePlugin : BaseUnityPlugin
 
         _bootstrapper = new LongLiveBootstrapper(Logger, Runtime, Native, Options);
         _bootstrapper.Initialize();
+
+        if (Options.EnableDebugLogging.Value)
+        {
+            var handshake = RefreshHandshake();
+            Logger.LogInfo($"LongLive handshake ready. version={handshake.PluginVersion}, protocol={handshake.HandshakeVersion}, next={handshake.NextRuntimeAvailable}, installRoot={handshake.InstallRoot}");
+        }
     }
 
     private void OnEnable()
@@ -62,7 +77,9 @@ public sealed class LongLivePlugin : BaseUnityPlugin
     {
         _bootstrapper?.Shutdown();
         _harmony?.UnpatchSelf();
+        LongLiveNativeBridge.ClearCache();
         Logger.LogInfo("LongLive plugin destroyed.");
+        _handshake = null;
         LogSource = null;
         Instance = null;
     }
@@ -92,6 +109,24 @@ public sealed class LongLivePlugin : BaseUnityPlugin
             "NativeLibraryPath",
             string.Empty,
             "Optional explicit path to longlive_native_core.dll used by the native probe installer.");
+
+        var enableMapTrace = Config.Bind(
+            "LongLive",
+            "EnableMapTrace",
+            false,
+            "Enable read-only Harmony map tracing for scene loads, world-map runtime state, node registration, and overview-map UI snapshots. Effective only when EnableDebugLogging is also true.");
+
+        var enableMapTraceVerbose = Config.Bind(
+            "LongLive",
+            "EnableMapTraceVerbose",
+            false,
+            "Enable additional map trace detail such as sampled node inventories and repeated structure snapshots. Effective only when both EnableDebugLogging and EnableMapTrace are true.");
+
+        var enableAutoExportMapSnapshot = Config.Bind(
+            "LongLive",
+            "EnableAutoExportMapSnapshot",
+            false,
+            "Export the current host map snapshot as JSON during runtime installer execution. Effective only when EnableDebugLogging is also true.");
 
         var enableBattleTrace = Config.Bind(
             "LongLive",
@@ -164,6 +199,9 @@ public sealed class LongLivePlugin : BaseUnityPlugin
             enableContentRuntimeInspection,
             enableNativeProbe,
             nativeLibraryPath,
+            enableMapTrace,
+            enableMapTraceVerbose,
+            enableAutoExportMapSnapshot,
             enableBattleTrace,
             enableBattleTraceVerbose,
             enableExperimentalBattleGuard,

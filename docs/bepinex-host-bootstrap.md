@@ -55,6 +55,8 @@ The current bootstrap chain can also run a JSON-mod demo install flow when expli
 
 The plugin bootstraps a shared `NextRuntimeFacade` instance and exposes it through a small context helper.
 
+The host context now also exposes a minimal read-only handshake surface for future Bridge detection.
+
 These files live under `src/LongLive.BepInEx/Plugin/` and are only compiled when local host references are enabled.
 
 ## 5. Current Non-Goals
@@ -78,6 +80,18 @@ The host layer uses BepInEx-native facilities directly.
 - host options use `Config.Bind(...)`
 
 The current design intentionally does not add a separate custom logging abstraction on top of BepInEx.
+
+The current host handshake is also intentionally simple.
+
+It exposes:
+
+- plugin identity
+- plugin version
+- handshake protocol version
+- resolved host install root
+- current capability list
+
+This is intended to support a future lightweight `LongLive.Bridge` detector without forcing that Bridge to bind to unstable internal host types.
 
 The host can also run an optional read-only content runtime inspection pass.
 
@@ -138,6 +152,8 @@ The build helper validates the expected local host reference paths before invoki
 
 The deploy helper builds the host project and copies the resulting plugin artifacts into the local `BepInEx/plugins` directory.
 
+That helper only handles the host side of the install model.
+
 On the current workshop-driven host layout, that deployment target may resolve to the plugin directory adjacent to the workshop-provided `BepInEx/core` directory instead of a standalone `觅长生/BepInEx/plugins` path.
 
 The repository also includes a separate local-test deployment helper for Next patch mods:
@@ -155,3 +171,7 @@ This matches Next's local patch-mod discovery rule:
 - the local group lives directly under `本地Mod测试`
 - the mod payload lives under `plugins/Next`
 - the actual mod directory name starts with `mod`
+
+That separation is intentional.
+
+`LongLive.Host` should stay deployable into `BepInEx/plugins`, while future `LongLive.Bridge` or content packages should stay deployable into the game's normal local-test or workshop mod path.

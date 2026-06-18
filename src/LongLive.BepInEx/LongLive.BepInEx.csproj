@@ -15,6 +15,10 @@
     <ProjectReference Include="..\LongLive.Next.Runtime\LongLive.Next.Runtime.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Localization\*.json" />
+  </ItemGroup>
+
   <ItemGroup Condition="'$(LongLiveEnableLocalHostReferences)' == 'true'">
     <Reference Include="0Harmony">
       <HintPath>$(BepInExCoreDir)\0Harmony.dll</HintPath>
