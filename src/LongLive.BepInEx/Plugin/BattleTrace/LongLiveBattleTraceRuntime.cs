@@ -2,9 +2,11 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using BepInEx.Logging;
 using HarmonyLib;
+using LongLive.BepInEx.Plugin;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -19,22 +21,44 @@ internal static class LongLiveBattleTraceRuntime
     private static readonly HashSet<string> NegativeHpFirstSeen = new HashSet<string>(StringComparer.Ordinal);
     private static readonly HashSet<int> GuardedSkillIds = new HashSet<int>();
     private static readonly HashSet<int> ReportedGuardedSkillIds = new HashSet<int>();
+    private static readonly HashSet<int> LethalCandidateSkillIds = new HashSet<int>();
+    private static readonly Dictionary<int, string> TerminatedSkillReasons = new Dictionary<int, string>();
+    private static readonly Dictionary<string, int> GuardedSkillSegmentIndexByAvatar = new Dictionary<string, int>(StringComparer.Ordinal);
     private static readonly Dictionary<string, int> BattleEventCounts = new Dictionary<string, int>(StringComparer.Ordinal);
     private static readonly Dictionary<string, int> DeadAvatarReentryCountsBySource = new Dictionary<string, int>(StringComparer.Ordinal);
     private static readonly Dictionary<int, int> DamageAttemptCountsBySkillId = new Dictionary<int, int>();
     private static readonly Dictionary<int, int> DamageInvocationCountsBySkillId = new Dictionary<int, int>();
     private static readonly Dictionary<int, int> SpellTickCountsBySkillId = new Dictionary<int, int>();
+    private static readonly Dictionary<int, int> SpellOnBuffTickCountsBySkillId = new Dictionary<int, int>();
+    private static readonly Dictionary<int, int> SpellOnBuffTickByTypeCountsBySkillId = new Dictionary<int, int>();
+    private static readonly Dictionary<int, int> SpellOnBuffTickByTypeCountsByType = new Dictionary<int, int>();
+    private static readonly Dictionary<string, int> SpellOnBuffTickByTypeCountsBySkillType = new Dictionary<string, int>(StringComparer.Ordinal);
+    private static readonly Dictionary<int, int> SpellOnBuffTickBridgeCountsByType = new Dictionary<int, int>();
     private static readonly Dictionary<int, int> GuardBlockedDamageCountsBySkillId = new Dictionary<int, int>();
     private static readonly Dictionary<int, int> GuardBlockedSpellTickCountsBySkillId = new Dictionary<int, int>();
+    private static readonly Dictionary<string, int> GuardBlockedSpellTickCountsBySource = new Dictionary<string, int>(StringComparer.Ordinal);
+    private static readonly Dictionary<int, int> GuardBlockedSpellTickCountsByType = new Dictionary<int, int>();
+    private static readonly Dictionary<string, int> GuardBlockedSpellTickCountsBySkillType = new Dictionary<string, int>(StringComparer.Ordinal);
+    private static readonly Dictionary<string, int> GuardBlockedDamageReasonCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+    private static readonly Dictionary<string, int> GuardBlockedSpellTickReasonCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+    private static readonly Dictionary<string, int> DamageDecisionReasonCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+    private static readonly Dictionary<string, int> SkillTerminationReasonCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+    private static readonly Dictionary<int, int> NativeLethalCountsBySkillId = new Dictionary<int, int>();
+    private static readonly Dictionary<int, int> OverflowCountsBySkillId = new Dictionary<int, int>();
+    private static readonly Dictionary<int, int> OverflowAmountBySkillId = new Dictionary<int, int>();
     private static readonly Dictionary<int, int> ReentryCountsByBuffId = new Dictionary<int, int>();
     private static readonly Dictionary<int, int> ReentryCountsBySeid = new Dictionary<int, int>();
     private static readonly Dictionary<int, int> LoopRealizeCountsByBuffId = new Dictionary<int, int>();
     private static readonly Dictionary<int, int> LoopRealizeCountsBySeid = new Dictionary<int, int>();
     private static readonly Dictionary<int, int> ListRealizeCountsByBuffId = new Dictionary<int, int>();
     private static readonly Dictionary<int, int> ListRealizeCountsBySeid = new Dictionary<int, int>();
+    private static readonly Dictionary<string, int> BlockedDamageLogCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+    private static readonly Dictionary<string, int> BlockedSpellTickLogCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+    private static readonly HashSet<string> ReportedSpellSkillIdMismatches = new HashSet<string>(StringComparer.Ordinal);
     private static int BattleSequence;
     private static int TotalTrackedEvents;
     private static int LastSummaryTrackedEvents;
+    private static LongLiveBattleDamagePipeline? BattleDamagePipeline;
     private static readonly string[] EntityMembers =
     {
         "HP", "Hp", "HP_Max", "_HP_Max", "MP", "Shield", "LingQi", "LingQiMax", "Dead", "IsDead", "UUID", "uuid", "Name", "name"
@@ -107,19 +131,40 @@ internal static class LongLiveBattleTraceRuntime
         NegativeHpFirstSeen.Clear();
         GuardedSkillIds.Clear();
         ReportedGuardedSkillIds.Clear();
+        LethalCandidateSkillIds.Clear();
+        TerminatedSkillReasons.Clear();
+        GuardedSkillSegmentIndexByAvatar.Clear();
         BattleEventCounts.Clear();
         DeadAvatarReentryCountsBySource.Clear();
         DamageAttemptCountsBySkillId.Clear();
         DamageInvocationCountsBySkillId.Clear();
         SpellTickCountsBySkillId.Clear();
+        SpellOnBuffTickCountsBySkillId.Clear();
+        SpellOnBuffTickByTypeCountsBySkillId.Clear();
+        SpellOnBuffTickByTypeCountsByType.Clear();
+        SpellOnBuffTickByTypeCountsBySkillType.Clear();
+        SpellOnBuffTickBridgeCountsByType.Clear();
         GuardBlockedDamageCountsBySkillId.Clear();
         GuardBlockedSpellTickCountsBySkillId.Clear();
+        GuardBlockedSpellTickCountsBySource.Clear();
+        GuardBlockedSpellTickCountsByType.Clear();
+        GuardBlockedSpellTickCountsBySkillType.Clear();
+        GuardBlockedDamageReasonCounts.Clear();
+        GuardBlockedSpellTickReasonCounts.Clear();
+        DamageDecisionReasonCounts.Clear();
+        SkillTerminationReasonCounts.Clear();
+        NativeLethalCountsBySkillId.Clear();
+        OverflowCountsBySkillId.Clear();
+        OverflowAmountBySkillId.Clear();
         ReentryCountsByBuffId.Clear();
         ReentryCountsBySeid.Clear();
         LoopRealizeCountsByBuffId.Clear();
         LoopRealizeCountsBySeid.Clear();
         ListRealizeCountsByBuffId.Clear();
         ListRealizeCountsBySeid.Clear();
+        BlockedDamageLogCounts.Clear();
+        BlockedSpellTickLogCounts.Clear();
+        ReportedSpellSkillIdMismatches.Clear();
         TotalTrackedEvents = 0;
         LastSummaryTrackedEvents = 0;
         BattleSequence++;
@@ -140,8 +185,25 @@ internal static class LongLiveBattleTraceRuntime
         LogTopSummary("battle summary top damage attempts by skillId", DamageAttemptCountsBySkillId);
         LogTopSummary("battle summary top recvDamage by skillId", DamageInvocationCountsBySkillId);
         LogTopSummary("battle summary top spell ticks by skillId", SpellTickCountsBySkillId);
+        LogTopSummary("battle summary top Spell.onBuffTick skillId", SpellOnBuffTickCountsBySkillId);
+        LogTopSummary("battle summary top Spell.onBuffTickByType skillId", SpellOnBuffTickByTypeCountsBySkillId);
+        LogTopSummary("battle summary top Spell.onBuffTickByType type", SpellOnBuffTickByTypeCountsByType);
+        LogTopSummary("battle summary top Spell.onBuffTickByType skill-type", SpellOnBuffTickByTypeCountsBySkillType);
+        LogTopSummary("battle summary top Spell.ONBuffTick type", SpellOnBuffTickBridgeCountsByType);
         LogTopSummary("battle summary top blocked damage by skillId", GuardBlockedDamageCountsBySkillId);
         LogTopSummary("battle summary top blocked spell ticks by skillId", GuardBlockedSpellTickCountsBySkillId);
+        LogTopSummary("battle summary blocked spell tick sources", GuardBlockedSpellTickCountsBySource);
+        LogTopSummary("battle summary blocked spell tick types", GuardBlockedSpellTickCountsByType);
+        LogTopSummary("battle summary blocked spell tick skill-type", GuardBlockedSpellTickCountsBySkillType);
+        LogTopSummary("battle summary blocked damage reasons", GuardBlockedDamageReasonCounts);
+        LogTopSummary("battle summary blocked spell tick reasons", GuardBlockedSpellTickReasonCounts);
+        LogTopSummary("battle summary decision reasons", DamageDecisionReasonCounts);
+        LogTopSummary("battle summary skill termination reasons", SkillTerminationReasonCounts);
+        LogSkillTypeBreakdownForTopBlockedSkill("battle summary Spell.onBuffTickByType type breakdown for top blocked skillId", SpellOnBuffTickByTypeCountsBySkillType, GuardBlockedSpellTickCountsBySkillId);
+        LogSkillTypeBreakdownForTopBlockedSkill("battle summary blocked spell tick type breakdown for top blocked skillId", GuardBlockedSpellTickCountsBySkillType, GuardBlockedSpellTickCountsBySkillId);
+        LogTopSummary("battle summary top native lethal skillId", NativeLethalCountsBySkillId);
+        LogTopSummary("battle summary top overflow skillId", OverflowCountsBySkillId);
+        LogTopSummary("battle summary top overflow amount by skillId", OverflowAmountBySkillId);
         LogTopSummary("battle summary top dead-avatar reentry sources", DeadAvatarReentryCountsBySource);
         LogTopSummary("battle summary top Buff.onLoopTrigger buffId", ReentryCountsByBuffId);
         LogTopSummary("battle summary top Buff.onLoopTrigger seid", ReentryCountsBySeid);
@@ -367,7 +429,26 @@ internal static class LongLiveBattleTraceRuntime
     public static void TrackSpellTick(IReadOnlyList<int>? flag)
     {
         IncrementCounter(BattleEventCounts, "Spell.onBuffTick");
-        IncrementCounter(SpellTickCountsBySkillId, NormalizePositiveKey(TryExtractFlagSkillId(flag)));
+        var normalizedSkillId = NormalizePositiveKey(TryExtractFlagSkillId(flag));
+        IncrementCounter(SpellTickCountsBySkillId, normalizedSkillId);
+        IncrementCounter(SpellOnBuffTickCountsBySkillId, normalizedSkillId);
+    }
+
+    public static void TrackSpellTickByType(int type, IReadOnlyList<int>? flag)
+    {
+        IncrementCounter(BattleEventCounts, "Spell.onBuffTickByType");
+        var normalizedSkillId = NormalizePositiveKey(TryExtractFlagSkillId(flag));
+        IncrementCounter(SpellTickCountsBySkillId, normalizedSkillId);
+        IncrementCounter(SpellOnBuffTickByTypeCountsBySkillId, normalizedSkillId);
+        var normalizedType = NormalizePositiveKey(type);
+        IncrementCounter(SpellOnBuffTickByTypeCountsByType, normalizedType);
+        IncrementRawCounter(SpellOnBuffTickByTypeCountsBySkillType, BuildSkillTypeKey(normalizedSkillId, normalizedType));
+    }
+
+    public static void TrackSpellOnBuffTickBridge(int type, int buffindex)
+    {
+        IncrementCounter(BattleEventCounts, "Spell.ONBuffTick");
+        IncrementCounter(SpellOnBuffTickBridgeCountsByType, NormalizePositiveKey(type));
     }
 
     public static bool ShouldBlockPostDeathBattleReentry(object? avatar, string source)
@@ -400,42 +481,94 @@ internal static class LongLiveBattleTraceRuntime
             return false;
         }
 
-        if (typedAvatar.isPlayer() || typedAvatar.HP > 0)
+        var currentHp = typedAvatar.HP;
+        var context = new LongLiveBattleDamageSegmentContext(
+            typedAvatar,
+            source,
+            skillId,
+            damage,
+            0,
+            currentHp,
+            typedAvatar.isPlayer(),
+            NextSegmentIndex(typedAvatar),
+            true,
+            skillId > 0 && GuardedSkillIds.Contains(skillId));
+
+        var decision = GetBattleDamagePipeline().Evaluate(context);
+        TrackDamageDecision(skillId, decision);
+
+        if (decision.MarkSkillAsLethalCandidate && skillId > 0)
+        {
+            MarkLethalCandidateSkillId(skillId, source, typedAvatar, decision);
+        }
+
+        if (!decision.SkipOriginalDamageInvocation)
         {
             return false;
         }
 
         IncrementCounter(BattleEventCounts, "battle-guard.blocked-damage");
         IncrementCounter(GuardBlockedDamageCountsBySkillId, NormalizePositiveKey(skillId));
-        if (skillId > 0)
+        var blockReason = string.IsNullOrWhiteSpace(decision.Reason) ? "unknown" : decision.Reason;
+        IncrementRawCounter(GuardBlockedDamageReasonCounts, blockReason);
+        if (decision.MarkSkillAsGuarded && skillId > 0)
         {
-            GuardedSkillIds.Add(skillId);
-            if (ReportedGuardedSkillIds.Add(skillId))
-            {
-                Log($"battle-guard marked skillId for spell short-circuit: skillId={skillId}, source={source}, {DescribeAvatarState(typedAvatar)}");
-            }
+            MarkGuardedSkillId(skillId, source, typedAvatar);
         }
 
-        Log($"battle-guard blocked post-death damage: source={source}, skillId={skillId}, damage={damage}, {DescribeAvatarState(typedAvatar)}");
+        if (ShouldEmitGuardLog(BlockedDamageLogCounts, BuildGuardLogKey(source, skillId, blockReason), out var damageLogCount))
+        {
+            Log($"battle-guard blocked post-death damage: count={damageLogCount}, source={source}, skillId={skillId}, damage={damage}, reason={blockReason}, lethal={decision.IsLethal}, overflow={decision.OverflowDamage}, predictedHp={decision.PredictedHpAfterSegment}, native={decision.NativeDecisionApplied}, {DescribeAvatarState(typedAvatar)}");
+        }
+
         return true;
     }
 
-    public static bool ShouldBlockSpellTick(IReadOnlyList<int>? flag, string source)
+    public static bool ShouldBlockSpellTick(object? spell, IReadOnlyList<int>? flag, string source, int? tickType = null)
     {
         if (!IsExperimentalGuardEnabled)
         {
             return false;
         }
 
-        var skillId = TryExtractFlagSkillId(flag);
-        if (!skillId.HasValue || !GuardedSkillIds.Contains(skillId.Value))
+        var skillId = TryResolveSpellSkillId(spell, flag, source);
+        if (!skillId.HasValue)
+        {
+            return false;
+        }
+
+        if (!GuardedSkillIds.Contains(skillId.Value))
         {
             return false;
         }
 
         IncrementCounter(BattleEventCounts, "battle-guard.blocked-spell-tick");
         IncrementCounter(GuardBlockedSpellTickCountsBySkillId, NormalizePositiveKey(skillId));
-        Log($"battle-guard blocked spell tick: source={source}, skillId={skillId.Value}, flag={DescribeIntList(flag)}");
+        IncrementRawCounter(GuardBlockedSpellTickCountsBySource, source);
+        var reason = TryGetTerminationReason(skillId.Value) ?? "post-death";
+        IncrementRawCounter(GuardBlockedSpellTickReasonCounts, reason);
+        if (ShouldEmitGuardLog(BlockedSpellTickLogCounts, BuildGuardLogKey(source, skillId.Value, reason), out var spellLogCount))
+        {
+            var typeSuffix = tickType.HasValue ? ", type=" + tickType.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty;
+            Log($"battle-guard blocked spell tick: count={spellLogCount}, source={source}, skillId={skillId.Value}, reason={reason}{typeSuffix}, flag={DescribeIntList(flag)}");
+        }
+
+        return true;
+    }
+
+    public static bool ShouldBlockSpellTickByType(object? spell, int type, IReadOnlyList<int>? flag, string source)
+    {
+        var blocked = ShouldBlockSpellTick(spell, flag, source, type);
+        if (!blocked)
+        {
+            return false;
+        }
+
+        var normalizedType = NormalizePositiveKey(type);
+        IncrementRawCounter(GuardBlockedSpellTickCountsByType, normalizedType);
+
+        var normalizedSkillId = NormalizePositiveKey(TryResolveSpellSkillId(spell, flag, source));
+        IncrementRawCounter(GuardBlockedSpellTickCountsBySkillType, BuildSkillTypeKey(normalizedSkillId, normalizedType));
         return true;
     }
 
@@ -470,6 +603,29 @@ internal static class LongLiveBattleTraceRuntime
 
         var skillId = flag[1];
         return skillId > 0 ? skillId : null;
+    }
+
+    public static int? TryResolveSpellSkillId(object? spell, IReadOnlyList<int>? flag, string? source = null)
+    {
+        var flagSkillId = TryExtractFlagSkillId(flag);
+        var spellSkillId = TryReadSpellSkillId(spell);
+
+        if (flagSkillId.HasValue && spellSkillId.HasValue && flagSkillId.Value != spellSkillId.Value)
+        {
+            var mismatchKey = string.Concat(
+                source ?? "<unknown>",
+                "|flag=",
+                flagSkillId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                "|spell=",
+                spellSkillId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+            if (ReportedSpellSkillIdMismatches.Add(mismatchKey))
+            {
+                LogVerbose($"spell skillId mismatch: source={source ?? "<unknown>"}, flagSkillId={flagSkillId.Value}, spellSkillId={spellSkillId.Value}, flag={DescribeIntList(flag)}, spell={DescribeSpell(spell)}");
+            }
+        }
+
+        return flagSkillId ?? spellSkillId;
     }
 
     public static string DescribeHpTransition(object? avatar, int? oldValue = null, int? explicitNewValue = null)
@@ -582,6 +738,20 @@ internal static class LongLiveBattleTraceRuntime
         return false;
     }
 
+    private static int? TryReadSpellSkillId(object? spell)
+    {
+        if (spell == null)
+        {
+            return null;
+        }
+
+        return TryGetIntMember(spell, "skill_ID")
+            ?? TryGetIntMember(spell, "Skill_ID")
+            ?? TryGetIntMember(spell, "Id")
+            ?? TryGetIntMember(spell, "ID")
+            ?? TryGetIntMember(spell, "itemId");
+    }
+
     private static string? ReadPreferredMember(object? instance, params string[] memberNames)
     {
         if (instance == null)
@@ -684,9 +854,115 @@ internal static class LongLiveBattleTraceRuntime
         return name + '|' + hpMax + '|' + baseHpMax;
     }
 
+    private static LongLiveBattleDamagePipeline GetBattleDamagePipeline()
+    {
+        if (BattleDamagePipeline != null)
+        {
+            return BattleDamagePipeline;
+        }
+
+        BattleDamagePipeline = new LongLiveBattleDamagePipeline(new ILongLiveBattleDamageMiddleware[]
+        {
+            new LongLiveTerminatedSkillPathMiddleware(),
+            new LongLiveAlreadyDeadDamageMiddleware(),
+            new LongLiveNativeDamageAdjudicationMiddleware()
+        });
+
+        return BattleDamagePipeline;
+    }
+
+    private static int NextSegmentIndex(object avatar)
+    {
+        var avatarKey = BuildAvatarKey(avatar);
+        if (!GuardedSkillSegmentIndexByAvatar.TryGetValue(avatarKey, out var segmentIndex))
+        {
+            segmentIndex = 0;
+        }
+
+        GuardedSkillSegmentIndexByAvatar[avatarKey] = segmentIndex + 1;
+        return segmentIndex;
+    }
+
+    private static void MarkGuardedSkillId(int skillId, string source, KBEngine.Avatar typedAvatar)
+    {
+        GuardedSkillIds.Add(skillId);
+        if (ReportedGuardedSkillIds.Add(skillId))
+        {
+            Log($"battle-guard marked skillId for spell short-circuit: skillId={skillId}, source={source}, {DescribeAvatarState(typedAvatar)}");
+        }
+    }
+
+    private static void MarkLethalCandidateSkillId(int skillId, string source, KBEngine.Avatar typedAvatar, LongLiveBattleDamageSegmentDecision decision)
+    {
+        if (!LethalCandidateSkillIds.Add(skillId))
+        {
+            return;
+        }
+
+        ActivateSkillTermination(skillId, "native-lethal", source, typedAvatar, decision);
+
+        Log($"battle-guard observed native lethal candidate: skillId={skillId}, source={source}, overflow={decision.OverflowDamage}, predictedHp={decision.PredictedHpAfterSegment}, {DescribeAvatarState(typedAvatar)}");
+    }
+
+    private static void ActivateSkillTermination(int skillId, string reason, string source, KBEngine.Avatar typedAvatar, LongLiveBattleDamageSegmentDecision decision)
+    {
+        GuardedSkillIds.Add(skillId);
+        TerminatedSkillReasons[skillId] = reason;
+        IncrementRawCounter(SkillTerminationReasonCounts, reason);
+
+        if (!ReportedGuardedSkillIds.Add(skillId))
+        {
+            return;
+        }
+
+        Log($"battle-guard activated skill termination: skillId={skillId}, reason={reason}, source={source}, overflow={decision.OverflowDamage}, predictedHp={decision.PredictedHpAfterSegment}, {DescribeAvatarState(typedAvatar)}");
+    }
+
+    private static string? TryGetTerminationReason(int skillId)
+    {
+        if (TerminatedSkillReasons.TryGetValue(skillId, out var reason))
+        {
+            return reason;
+        }
+
+        return null;
+    }
+
+    private static void TrackDamageDecision(int skillId, LongLiveBattleDamageSegmentDecision decision)
+    {
+        IncrementCounter(BattleEventCounts, "battle-guard.decision");
+
+        var reason = string.IsNullOrWhiteSpace(decision.Reason) ? "unknown" : decision.Reason;
+        IncrementCounter(DamageDecisionReasonCounts, reason);
+
+        var normalizedSkillId = NormalizePositiveKey(skillId);
+        if (decision.NativeDecisionApplied && decision.IsLethal)
+        {
+            IncrementCounter(BattleEventCounts, "battle-guard.native-lethal");
+            IncrementCounter(NativeLethalCountsBySkillId, normalizedSkillId);
+        }
+
+        if (decision.OverflowDamage > 0)
+        {
+            IncrementCounter(BattleEventCounts, "battle-guard.overflow");
+            IncrementCounter(OverflowCountsBySkillId, normalizedSkillId);
+            AddCounterValue(OverflowAmountBySkillId, normalizedSkillId, decision.OverflowDamage);
+        }
+    }
+
     private static int NormalizePositiveKey(int? value)
     {
         return value.HasValue && value.Value > 0 ? value.Value : 0;
+    }
+
+    private static string BuildGuardLogKey(string source, int skillId, string reason)
+    {
+        return source + '|' + skillId.ToString(System.Globalization.CultureInfo.InvariantCulture) + '|' + reason;
+    }
+
+    private static string BuildSkillTypeKey(int skillId, int type)
+    {
+        return skillId.ToString(System.Globalization.CultureInfo.InvariantCulture) + '@' + type.ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private static int? TryReadBuffId(object? buff)
@@ -724,6 +1000,52 @@ internal static class LongLiveBattleTraceRuntime
         }
 
         counts[key] = count + 1;
+    }
+
+    private static void AddCounterValue(Dictionary<int, int> counts, int key, int value)
+    {
+        TotalTrackedEvents++;
+        if (!counts.TryGetValue(key, out var count))
+        {
+            count = 0;
+        }
+
+        counts[key] = checked(count + value);
+    }
+
+    private static int IncrementRawCounter(Dictionary<string, int> counts, string key)
+    {
+        if (!counts.TryGetValue(key, out var count))
+        {
+            count = 0;
+        }
+
+        count++;
+        counts[key] = count;
+        return count;
+    }
+
+    private static int IncrementRawCounter(Dictionary<int, int> counts, int key)
+    {
+        if (!counts.TryGetValue(key, out var count))
+        {
+            count = 0;
+        }
+
+        count++;
+        counts[key] = count;
+        return count;
+    }
+
+    private static bool ShouldEmitGuardLog(Dictionary<string, int> counts, string key, out int count)
+    {
+        count = IncrementRawCounter(counts, key);
+        if (count <= 3)
+        {
+            return true;
+        }
+
+        return count == 5 || count == 10 || count == 25 || count % 50 == 0;
     }
 
     private static string FormatBattleEventTotals()
@@ -779,6 +1101,51 @@ internal static class LongLiveBattleTraceRuntime
         Log(label + ": " + summary);
     }
 
+    private static void LogSkillTypeBreakdownForTopBlockedSkill(string label, Dictionary<string, int> skillTypeCounts, Dictionary<int, int> blockedSkillCounts)
+    {
+        if (skillTypeCounts.Count == 0 || blockedSkillCounts.Count == 0)
+        {
+            return;
+        }
+
+        var topSkillId = blockedSkillCounts
+            .OrderByDescending(pair => pair.Value)
+            .ThenBy(pair => pair.Key)
+            .Select(pair => pair.Key)
+            .FirstOrDefault();
+
+        if (topSkillId <= 0)
+        {
+            return;
+        }
+
+        var prefix = topSkillId.ToString(System.Globalization.CultureInfo.InvariantCulture) + '@';
+        var filtered = new Dictionary<int, int>();
+        foreach (var pair in skillTypeCounts)
+        {
+            if (!pair.Key.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var typePart = pair.Key.Substring(prefix.Length);
+            if (!int.TryParse(typePart, out var type))
+            {
+                continue;
+            }
+
+            filtered[type] = pair.Value;
+        }
+
+        var summary = FormatTopSummary(filtered, 16);
+        if (summary == null)
+        {
+            return;
+        }
+
+        Log(label + $": skillId={topSkillId}, " + summary);
+    }
+
     private static string? FormatTopSummary(Dictionary<string, int> counts)
     {
         if (counts.Count == 0)
@@ -810,7 +1177,7 @@ internal static class LongLiveBattleTraceRuntime
         return string.Join(", ", parts);
     }
 
-    private static string? FormatTopSummary(Dictionary<int, int> counts)
+    private static string? FormatTopSummary(Dictionary<int, int> counts, int maxItems = 5)
     {
         if (counts.Count == 0)
         {
@@ -824,7 +1191,6 @@ internal static class LongLiveBattleTraceRuntime
             return countCompare != 0 ? countCompare : left.Key.CompareTo(right.Key);
         });
 
-        const int maxItems = 5;
         var take = Math.Min(ordered.Count, maxItems);
         var parts = new List<string>(take);
         for (var index = 0; index < take; index++)

@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <LongLiveEnableLocalHostReferences>true</LongLiveEnableLocalHostReferences>
+    <McsGameRoot>D:\Appdata\Steam\steamapps\common\觅长生</McsGameRoot>
+    <BepInExCoreDir>D:\Appdata\Steam\steamapps\workshop\content\1189490\2824349934\BepInEx\core</BepInExCoreDir>
+  </PropertyGroup>
+</Project>

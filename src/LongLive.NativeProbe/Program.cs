@@ -35,11 +35,25 @@ internal static class Program
             flatBonus: 24,
             defense: 70,
             reductionPercent: 18);
+        var segmentDecision = LongLiveNative.AdjudicateDamageSegment(new LongLiveNative.LongLiveNativeDamageSegmentRequest
+        {
+            CurrentHp = 280,
+            IncomingDamage = 134427,
+            SkillId = 7074,
+            DamageType = 0,
+            IsPlayerTarget = 0,
+            IsMultiHit = 1,
+            SegmentIndex = 0
+        });
 
         Console.WriteLine($"abi_version={abiVersion}");
         Console.WriteLine($"sum={sum}");
         Console.WriteLine($"ready={ready}");
         Console.WriteLine($"turn_damage={turnDamage}");
+        Console.WriteLine($"segment_applied={segmentDecision.AppliedDamage}");
+        Console.WriteLine($"segment_overflow={segmentDecision.OverflowDamage}");
+        Console.WriteLine($"segment_predicted_hp={segmentDecision.PredictedHpAfterSegment}");
+        Console.WriteLine($"segment_flags={segmentDecision.Flags}");
         return 0;
     }
 
@@ -53,6 +67,27 @@ internal static class Program
 internal static class LongLiveNative
 {
     public const string LibraryName = "longlive_native_core";
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct LongLiveNativeDamageSegmentRequest
+    {
+        public int CurrentHp;
+        public int IncomingDamage;
+        public int SkillId;
+        public int DamageType;
+        public int IsPlayerTarget;
+        public int IsMultiHit;
+        public int SegmentIndex;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct LongLiveNativeDamageSegmentDecision
+    {
+        public int AppliedDamage;
+        public int OverflowDamage;
+        public int PredictedHpAfterSegment;
+        public int Flags;
+    }
 
     [DllImport(LibraryName, EntryPoint = "longlive_native_core_abi_version", CallingConvention = CallingConvention.Cdecl)]
     public static extern int GetAbiVersion();
@@ -70,4 +105,7 @@ internal static class LongLiveNative
         int flatBonus,
         int defense,
         int reductionPercent);
+
+    [DllImport(LibraryName, EntryPoint = "longlive_native_core_adjudicate_damage_segment", CallingConvention = CallingConvention.Cdecl)]
+    public static extern LongLiveNativeDamageSegmentDecision AdjudicateDamageSegment(LongLiveNativeDamageSegmentRequest request);
 }

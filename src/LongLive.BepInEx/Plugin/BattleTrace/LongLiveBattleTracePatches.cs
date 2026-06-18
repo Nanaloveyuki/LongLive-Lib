@@ -399,7 +399,7 @@ internal static class LongLiveBattleTraceBuffListRealizeSeid71Patch
             return false;
         }
 
-        LongLiveBattleTraceRuntime.Log(
+        LongLiveBattleTraceRuntime.LogVerbose(
             $"Buff.ListRealizeSeid71 prefix: seid={seid}, buff={LongLiveBattleTraceRuntime.DescribeBuff(__instance)}, avatar={LongLiveBattleTraceRuntime.DescribeAvatarState(avatar)}, buffInfo={LongLiveBattleTraceRuntime.DescribeIntList(buffInfo)}, flag={LongLiveBattleTraceRuntime.DescribeIntList(flag)}");
         return true;
     }
@@ -422,7 +422,7 @@ internal static class LongLiveBattleTraceBuffLoopRealizeSeidPatch
             return false;
         }
 
-        LongLiveBattleTraceRuntime.Log(
+        LongLiveBattleTraceRuntime.LogVerbose(
             $"Buff.loopRealizeSeid prefix: seid={seid}, buff={LongLiveBattleTraceRuntime.DescribeBuff(__instance)}, avatar={LongLiveBattleTraceRuntime.DescribeEntity(_avatar)}, buffInfo={LongLiveBattleTraceRuntime.DescribeIntList(buffInfo)}, flag={LongLiveBattleTraceRuntime.DescribeIntList(flag)}");
         return true;
     }
@@ -445,7 +445,7 @@ internal static class LongLiveBattleTraceBuffOnLoopTriggerPatch
             return false;
         }
 
-        LongLiveBattleTraceRuntime.Log(
+        LongLiveBattleTraceRuntime.LogVerbose(
             $"Buff.onLoopTrigger prefix: buff={LongLiveBattleTraceRuntime.DescribeBuff(__instance)}, avatar={LongLiveBattleTraceRuntime.DescribeEntity(_avatar)}, buffInfo={LongLiveBattleTraceRuntime.DescribeIntList(buffInfo)}, flag={LongLiveBattleTraceRuntime.DescribeIntList(flag)}, loopData={LongLiveBattleTraceRuntime.DescribeBuffLoopData(buffLoopData)}");
         return true;
     }
@@ -461,15 +461,55 @@ internal static class LongLiveBattleTraceSpellOnBuffTickPatch
 
     public static bool Prefix(Spell __instance, int index, List<int> flag, int type)
     {
-        LongLiveBattleTraceRuntime.TrackSpellTick(flag);
-        if (LongLiveBattleTraceRuntime.ShouldBlockSpellTick(flag, "Spell.onBuffTick"))
+        if (LongLiveBattleTraceRuntime.ShouldBlockSpellTick(__instance, flag, "Spell.onBuffTick"))
         {
             return false;
         }
 
-        LongLiveBattleTraceRuntime.Log(
+        LongLiveBattleTraceRuntime.TrackSpellTick(flag);
+
+        LongLiveBattleTraceRuntime.LogVerbose(
             $"Spell.onBuffTick prefix: index={index}, type={type}, spell={LongLiveBattleTraceRuntime.DescribeSpell(__instance)}, flag={LongLiveBattleTraceRuntime.DescribeIntList(flag)}");
         return true;
+    }
+}
+
+[HarmonyPatch(typeof(Spell), "onBuffTickByType", new[] { typeof(int), typeof(List<int>) })]
+internal static class LongLiveBattleTraceSpellOnBuffTickByTypePatch
+{
+    public static bool Prepare()
+    {
+        return LongLiveBattleTraceRuntime.Prepare(nameof(LongLiveBattleTraceSpellOnBuffTickByTypePatch));
+    }
+
+    public static bool Prefix(Spell __instance, int type, List<int> flag)
+    {
+        if (LongLiveBattleTraceRuntime.ShouldBlockSpellTickByType(__instance, type, flag, "Spell.onBuffTickByType"))
+        {
+            return false;
+        }
+
+        LongLiveBattleTraceRuntime.TrackSpellTickByType(type, flag);
+
+        LongLiveBattleTraceRuntime.LogVerbose(
+            $"Spell.onBuffTickByType prefix: type={type}, spell={LongLiveBattleTraceRuntime.DescribeSpell(__instance)}, flag={LongLiveBattleTraceRuntime.DescribeIntList(flag)}");
+        return true;
+    }
+}
+
+[HarmonyPatch(typeof(Spell), "ONBuffTick")]
+internal static class LongLiveBattleTraceSpellONBuffTickPatch
+{
+    public static bool Prepare()
+    {
+        return LongLiveBattleTraceRuntime.Prepare(nameof(LongLiveBattleTraceSpellONBuffTickPatch));
+    }
+
+    public static void Prefix(Spell __instance, int buffindex, int type)
+    {
+        LongLiveBattleTraceRuntime.TrackSpellOnBuffTickBridge(type, buffindex);
+        LongLiveBattleTraceRuntime.LogVerbose(
+            $"Spell.ONBuffTick prefix: buffindex={buffindex}, type={type}, spell={LongLiveBattleTraceRuntime.DescribeSpell(__instance)}");
     }
 }
 

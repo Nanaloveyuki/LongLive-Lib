@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using BepInEx.Logging;
 using HarmonyLib;
+using LongLive.BepInEx.Native;
 using LongLive.Next.Runtime;
 using UnityEngine;
 using UnityEngine.Events;
@@ -198,7 +199,7 @@ public sealed class LongLiveMainMenuEntryInstaller : ILongLiveInstaller
     private void ShowDiagnostics()
     {
         var report = _runtime.ContentInspector.Inspect();
-        var nativeProbe = LongLiveNativeProbeState.Current;
+        var nativeProbe = LongLivePlugin.Instance?.Native.CurrentProbeResult ?? LongLiveNativeProbeResult.Disabled();
         var lines = new[]
         {
             $"Plugin: {LongLivePluginMetadata.PluginName} {LongLivePluginMetadata.PluginVersion}",

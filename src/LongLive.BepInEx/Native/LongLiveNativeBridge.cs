@@ -17,6 +17,9 @@ internal static class LongLiveNativeBridge
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate int ComputeTurnDamageDelegate(int attack, int skillPowerPercent, int flatBonus, int defense, int reductionPercent);
 
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate LongLiveNativeDamageSegmentDecision AdjudicateDamageSegmentDelegate(LongLiveNativeDamageSegmentRequest request);
+
     [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
     private static extern IntPtr LoadLibrary(string lpFileName);
 
@@ -55,6 +58,14 @@ internal static class LongLiveNativeBridge
         using (var library = NativeLibraryHandle.Load(libraryPath))
         {
             return library.GetDelegate<ComputeTurnDamageDelegate>("longlive_native_core_compute_turn_damage")(attack, skillPowerPercent, flatBonus, defense, reductionPercent);
+        }
+    }
+
+    public static LongLiveNativeDamageSegmentDecision AdjudicateDamageSegment(string libraryPath, LongLiveNativeDamageSegmentRequest request)
+    {
+        using (var library = NativeLibraryHandle.Load(libraryPath))
+        {
+            return library.GetDelegate<AdjudicateDamageSegmentDelegate>("longlive_native_core_adjudicate_damage_segment")(request);
         }
     }
 

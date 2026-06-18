@@ -285,7 +285,370 @@ So future validation should prefer:
 
 instead of assuming one manually reproduced skill is representative of the entire combat system.
 
-## 5. Representative Trace Evidence
+### Finding K: Segment-level decision telemetry is now part of the trace surface
+
+The current experimental guard is no longer only a binary block/no-block switch.
+
+It now records segment-level damage decisions from the new battle pipeline layer, including:
+
+- decision reason counts such as `already-dead` or `native-lethal`
+- top `skillId` values that produced native lethal decisions
+- top `skillId` values that produced overflow
+- aggregate overflow amount grouped by `skillId`
+
+This does not yet change the in-game floating damage text.
+
+It does provide the first structured runtime surface needed for later work on:
+
+- overflow presentation
+- skill-chain termination after the first lethal segment
+- middleware-based damage multipliers or rule modifiers
+
+## 5. Session Note: 2026-06-18
+
+Two additional local validation fights were recorded in the current workshop-driven BepInEx runtime.
+
+### Run A: Ordinary one-shot kill
+
+This run behaved like a fast lethal finish instead of a runaway post-death storm.
+
+Observed summary highlights:
+
+- checkpoint at `Fight.FightResultMag.ShowVictory()` with `trackedEvents=1961`
+- target: `嗜焰蟒`
+- top negative avatar count: `嗜焰蟒|180|180=1`
+- top `recvDamage(...)` skill IDs: `10006=3`, `13805=1`
+- top `Spell.onBuffTick(...)` skill IDs: `1=111`, `unknown=64`, `13805=23`, `10006=6`
+
+Representative lethal sequence:
+
+- first lethal negative write observed at about `requestedHp=-134598`
+- later attempted write observed at about `requestedHp=-404155`
+- `Avatar.setHP(...)` postfix did not continue changing the stored HP after the first lethal transition
+
+This run still confirms that negative HP is possible.
+
+However, it does not resemble the previously reproduced severe lag case.
+
+### Run B: High-damage multi-hit case
+
+This run again reproduced the known runaway multi-hit family centered on `skillId=7074`.
+
+Observed summary highlights:
+
+- checkpoint at `Fight.FightVictory.SetVictory()` with `trackedEvents=25568`
+- target: `藤蛇`
+- top negative avatar count: `藤蛇|1410|1200=82`
+- top damage-attempt skill ID: `7074=80`
+- top `recvDamage(...)` skill IDs: `7074=83`, `10006=8`
+- top `Spell.onBuffTick(...)` skill IDs: `7074=4235`, `1=476`, `unknown=168`
+- top blocked damage skill ID: `7074=80`
+- top blocked spell-tick skill ID: `7074=4060`
+- total negative-HP writes: `82`
+- total blocked post-death damage calls: `80`
+
+Representative runtime evidence:
+
+- the guard marked `skillId=7074` for later spell short-circuit
+- repeated blocked post-death damage continued to target `藤蛇`
+- representative dead-target HP remained around `HP=-121119`
+
+This run confirms that the previous practical bottleneck is still the correct one:
+
+- later `Spell.onBuffTick(...)` fan-out for the same skill path
+- plus repeated post-death damage attempts against an already-negative target
+
+### Important deployment note for this session
+
+These two runs were performed before the newly built host DLL containing the latest segment-decision summary keys was redeployed into the active game plugin directory.
+
+As a result, the session log does not yet contain the newly added summary lines for:
+
+- `battle summary decision reasons`
+- `battle summary top native lethal skillId`
+- `battle summary top overflow skillId`
+- `battle summary top overflow amount by skillId`
+
+After this was noticed, the latest host build was deployed into:
+
+- `D:/Appdata/Steam/steamapps/workshop/content/1189490/2824349934/BepInEx/plugins/LongLive.BepInEx.dll`
+
+That means the next validation run should be treated as the first real in-game check of the newer segment-decision telemetry layer.
+
+### Follow-up verification after redeploy
+
+After the updated host DLL was redeployed, another two-fight validation pass confirmed that the newer segment-decision telemetry is now live in the game runtime.
+
+#### Run C: Ordinary one-shot kill with segment telemetry
+
+Observed runtime evidence:
+
+- `battle-guard observed native lethal candidate: skillId=13805`
+- target: `泽蟒`
+- representative overflow: `203910`
+- representative predicted HP after the lethal segment: `0`
+
+Observed summary highlights:
+
+- `battle summary decision reasons: pass-through=2, native-lethal=1`
+- `battle summary top native lethal skillId: 13805=1`
+- `battle summary top overflow skillId: 13805=1`
+- `battle summary top overflow amount by skillId: 13805=203910`
+
+This is the first clear in-game confirmation that the new telemetry can detect an ordinary lethal segment without immediately classifying the rest of the fight as a runaway post-death storm.
+
+In other words:
+
+- the lethal segment was observed
+- overflow was measured
+- the fight still ended normally
+
+That matches the intended near-term behavior much better than the earlier version that risked treating the first lethal segment itself as a block target.
+
+#### Run D: High-damage multi-hit case with segment telemetry
+
+Observed runtime evidence:
+
+- `battle-guard observed native lethal candidate: skillId=7074`
+- target: `岩鳄`
+- representative first-segment overflow: `203843`
+- later blocked damage entries switched to `reason=already-dead`
+- the guard still marked `skillId=7074` for later spell short-circuit once the target had already entered a dead/negative state
+
+Observed summary highlights:
+
+- `battle summary decision reasons: already-dead=46, pass-through=5, native-lethal=1`
+- `battle summary top native lethal skillId: 7074=1`
+- `battle summary top overflow skillId: 7074=47`
+- `battle summary top overflow amount by skillId: 7074=206104`
+
+This is an important separation-of-concerns result.
+
+The current trace now distinguishes:
+
+1. the first lethal segment candidate
+2. later post-death damage attempts on the same skill path
+
+That is exactly the distinction needed for a safer future implementation where:
+
+- the first lethal segment is allowed to resolve through the game’s ordinary death path
+- later same-path segments are suppressed once the target is already dead or already below zero
+
+The run also confirms that the practical post-death bottleneck remains the same family of behavior seen before:
+
+- repeated `skillId=7074` damage attempts
+- later `Spell.onBuffTick(...)` fan-out
+- repeated corpse-target processing after negative HP has already been reached
+
+### Follow-up verification after termination-token activation
+
+Another validation pass was performed after skill-path termination was activated immediately on the first observed native lethal segment.
+
+#### Run E: Ordinary one-shot kill with early skill termination
+
+Observed runtime evidence:
+
+- `battle-guard activated skill termination: skillId=13805, reason=native-lethal`
+- immediate later `Spell.onBuffTick(...)` blocks for the same `skillId`
+- representative overflow: `203950`
+
+Observed summary highlights:
+
+- first checkpoint at `Fight.FightResultMag.ShowVictory()` with `trackedEvents=1428`
+- `Spell.onBuffTick=153`
+- `battle-guard.blocked-spell-tick=7` at the earliest checkpoint
+- later checkpoint at `Fight.FightVictory.SetVictory()` with `Spell.onBuffTick=176`
+- `battle-guard.blocked-spell-tick=30`
+- `battle summary decision reasons: pass-through=2, native-lethal=1`
+
+This confirms that termination now activates before the target is already deep into repeated corpse-side processing.
+
+It also shows that an ordinary lethal skill can now short-circuit later same-path spell ticks much earlier than before.
+
+#### Run F: High-damage multi-hit case with early skill termination
+
+Observed runtime evidence:
+
+- `battle-guard activated skill termination: skillId=7074, reason=native-lethal`
+- immediate later `Spell.onBuffTick(...)` blocks for the same `skillId`
+- later blocked damage still appears with `reason=already-dead`, but now after termination was already active
+- representative first-segment overflow: `203903`
+
+Observed summary highlights at the first victory checkpoint:
+
+- `trackedEvents=1554`
+- `Spell.onBuffTick=168`
+- `battle-guard.blocked-spell-tick=7`
+- `battle summary decision reasons: pass-through=2, native-lethal=1`
+- `battle summary top native lethal skillId: 7074=1`
+- `battle summary top overflow amount by skillId: 7074=203903`
+
+This is a major reduction compared with the earlier multi-hit runs that produced thousands of `Spell.onBuffTick(...)` calls before fight cleanup.
+
+The current evidence therefore suggests:
+
+1. the first lethal segment is now detected early enough to activate a skill-path termination token
+2. later same-path spell ticks are being suppressed much earlier than in the older guard-only model
+3. some later corpse-side damage attempts still exist, but the scale of the fan-out storm has been dramatically reduced
+
+### Follow-up trace hygiene after early termination validation
+
+After the in-game validation confirmed that the high-damage multi-hit case had already become visibly smooth, the next local refinement step shifted from raw mitigation to trace hygiene.
+
+The main purpose of this refinement is not a new gameplay change.
+
+It is to make later sampling easier to read and compare by reducing repeated log spam and by separating different guard outcomes more explicitly in battle summaries.
+
+The trace layer now additionally tracks:
+
+- blocked damage reasons grouped independently from blocked damage `skillId` counts
+- blocked spell-tick reasons grouped independently from blocked spell-tick `skillId` counts
+- skill termination activation reasons grouped across the fight
+
+Repeated per-event guard logs are also now throttled by repetition count instead of printing every identical blocked spell tick or blocked corpse-side damage event.
+
+This refinement matters because the current bottleneck is no longer obvious frame collapse in the reproduced test.
+
+The harder question now is narrower:
+
+- how much repeated `Spell.onBuffTick(...)` traffic still enters the patched prefix after termination is already active
+- how much later `recvDamage(...)` traffic is still reaching the corpse-side guard path
+- whether the remaining behavior is mostly harmless residual dispatch or a sign that an even earlier upstream stop-point is still worth implementing
+
+The next validation run should therefore prefer summary interpretation over raw line-count scrolling.
+
+In particular, these summary lines should now be treated as first-line indicators:
+
+- `battle summary blocked damage reasons`
+- `battle summary blocked spell tick reasons`
+- `battle summary skill termination reasons`
+
+### Follow-up verification after `Spell.onBuffTickByType(...)` source separation
+
+Another trace refinement pass promoted the spell-side summary into two distinct layers:
+
+- `Spell.onBuffTick(...)`
+- `Spell.onBuffTickByType(...)`
+
+This produced a much clearer result in the high-damage multi-hit path.
+
+#### Run G: High-damage multi-hit with `onBuffTickByType` source separation
+
+Observed summary highlights:
+
+- `Spell.onBuffTickByType=1511`
+- `Spell.onBuffTick=370`
+- `battle-guard.blocked-spell-tick=441`
+- `battle summary blocked spell tick sources: Spell.onBuffTickByType=441`
+- `battle summary blocked damage reasons: terminated-skill-path=27`
+
+This is the first direct proof that the surviving post-lethal spell storm is no longer reaching the older `Spell.onBuffTick(...)` guard surface as its primary block point.
+
+Instead, the dominant surviving dispatch layer is now `Spell.onBuffTickByType(...)` itself.
+
+That matters because it narrows the next optimization question from:
+
+- where is the spell storm happening at all
+
+to:
+
+- whether specific `type` branches inside `Spell.onBuffTickByType(...)` can be short-circuited safely once a skill path has already been terminated
+
+#### Run H: High-damage multi-hit with skill-type breakdown
+
+The next refinement pass added `skillId@type` grouping for `Spell.onBuffTickByType(...)` and for blocked spell ticks.
+
+Observed summary highlights:
+
+- top general background traffic still heavily favored normal-looking combinations such as `1@11`, `1@36`, and `1@38`
+- blocked spell ticks remained entirely sourced from `Spell.onBuffTickByType(...)`
+- the dominant blocked combinations for the reproduced `7074` case were not those broad background pairs
+- instead, repeated blocked combinations clustered around a stable family including:
+  `7074@7`, `7074@8`, `7074@9`, `7074@28`, `7074@29`, `7074@30`, `7074@31`, `7074@33`, `7074@37`, `7074@40`, `7074@42`, `7074@46`, `7074@47`, `7074@50`, `7074@51`, `7074@54`
+
+Representative summary evidence:
+
+- `battle summary blocked spell tick skill-type: 7074@28=29, 7074@31=29, 7074@33=29, 7074@40=29, 7074@42=29, ...`
+- `battle summary blocked spell tick type breakdown for top blocked skillId: skillId=7074, 7=29, 8=29, 28=29, 31=29, 33=29, 40=29, 42=29, 50=29, 51=29, 54=29, 9=28, 29=28, 37=28, 46=28, 47=28, 30=27`
+
+This is a stronger constraint than the earlier broad type histogram alone.
+
+It shows that the confirmed unstable chain is not simply:
+
+- all `type=38`
+- all `type=11`
+- all `type=36`
+
+Those broad type groups still carry large volumes of apparently normal background spell traffic in ordinary fights.
+
+The practical implication is therefore more conservative and more precise:
+
+- future earlier short-circuit work should key off terminated `skillId` plus specific `type` combinations
+- a blanket block by broad `type` alone would be much riskier than a terminated-skill-aware `skillId@type` filter
+
+#### Run I: Validation after spell-context reconciliation and hot-path log demotion
+
+Another in-game validation pass was performed after two trace-only refinements:
+
+- spell-side guard lookup now attempts to reconcile `flag`-derived and `Spell`-derived skill identity before making a block decision
+- the hottest buff/spell prefix logs were demoted to verbose-only output to reduce avoidable logging overhead during sampling
+
+Observed summary highlights at the late-fight checkpoint:
+
+- `Spell.onBuffTickByType=1379`
+- `Spell.onBuffTick=408`
+- `battle-guard.blocked-spell-tick=473`
+- `battle summary blocked spell tick sources: Spell.onBuffTickByType=473`
+- `battle summary blocked spell tick skill-type: 7074@28=30, 7074@31=30, 7074@33=30, 7074@40=30, 7074@42=30, ...`
+- `battle summary blocked damage reasons: terminated-skill-path=29`
+- `battle summary blocked spell tick reasons: native-lethal=473`
+
+Representative blocked-type breakdown for the top blocked skill remained:
+
+- `7=30`
+- `8=30`
+- `28=30`
+- `31=30`
+- `33=30`
+- `40=30`
+- `42=30`
+- `50=30`
+- `51=30`
+- `54=30`
+- `9=29`
+- `29=29`
+- `37=29`
+- `46=29`
+- `47=29`
+- `30=28`
+
+This run adds two useful constraints.
+
+First, no `spell skillId mismatch` line was emitted during the sampled fight.
+
+That means the current reproduced `7074` post-lethal storm is not explained by a newly discovered disagreement between:
+
+- the `flag`-derived skill context
+- and the reflected `Spell` instance context
+
+In other words, the active `7074` guard hit is still anchored to a stable skill-side identity in the observed storm path.
+
+Second, the blocked `skillId@type` family stayed materially consistent with the earlier runs.
+
+That consistency strengthens the earlier interpretation:
+
+- the core problem is still later upstream spell dispatch continuing after lethal termination has already been activated for `7074`
+- the current bottleneck is not primarily a misidentified skill context
+- broad background traffic such as `1@11`, `1@36`, and `1@38` remains separate from the confirmed unstable `7074` family
+
+The practical next step is therefore not a broad new block rule.
+
+It is to keep any further earlier stop-point work tightly constrained to:
+
+- terminated skills only
+- and, if needed, the stable reproduced `7074`-style `skillId@type` family rather than broad type-wide suppression
+
+## 6. Representative Trace Evidence
 
 ### Case 1: High-damage skill against `墨蛟`
 
@@ -345,7 +708,7 @@ Representative values:
 - later attempted writes: `-379xxx`, `-624xxx`
 - repeated follow-up damage packets: around `2041xx` to `2043xx`
 
-## 6. Current Interpretation
+## 7. Current Interpretation
 
 The current evidence suggests the combat instability is not just a balance problem.
 
@@ -369,7 +732,7 @@ The latest trace refines that statement further:
 
 That is a sequencing bug or sequencing hazard, not only a numeric overflow symptom.
 
-## 7. What Is Not Yet Proven
+## 8. What Is Not Yet Proven
 
 The current trace still does not fully prove:
 
@@ -379,7 +742,7 @@ The current trace still does not fully prove:
 - whether `recvDamage(...)` itself owns the repeated chaining, or whether later systems re-enter it
 - why `Fight.FightResultMag.ShowVictory()` can appear before the final observed `Avatar.die()` call
 
-## 8. Recommended Next Trace Layer
+## 9. Recommended Next Trace Layer
 
 The next read-only trace layer should focus on death-state transition and post-death re-entry.
 
@@ -398,7 +761,7 @@ Candidate targets include:
 - `Fungus.CheckNpcDeath`
 - any combat-side method that transitions from negative HP to final cleanup
 
-## 9. Guard Strategy Implications
+## 10. Guard Strategy Implications
 
 The current findings argue against a naive global clamp.
 

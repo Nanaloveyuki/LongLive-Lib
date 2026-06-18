@@ -53,4 +53,26 @@ public sealed class LongLiveNativeService
         var libraryPath = LongLiveNativeLibraryResolver.ResolveLibraryPath(configuredLibraryPath);
         return LongLiveNativeBridge.ComputeTurnDamage(libraryPath, attack, skillPowerPercent, flatBonus, defense, reductionPercent);
     }
+
+    public bool TryAdjudicateDamageSegment(string configuredLibraryPath, LongLiveNativeDamageSegmentRequest request, out LongLiveNativeDamageSegmentDecision decision)
+    {
+        var libraryPath = LongLiveNativeLibraryResolver.ResolveLibraryPath(configuredLibraryPath);
+        if (!File.Exists(libraryPath))
+        {
+            decision = default;
+            return false;
+        }
+
+        try
+        {
+            decision = LongLiveNativeBridge.AdjudicateDamageSegment(libraryPath, request);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning($"LongLive native damage adjudication fallback: {exception.Message}");
+            decision = default;
+            return false;
+        }
+    }
 }
