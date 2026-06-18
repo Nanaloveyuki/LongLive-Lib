@@ -14,6 +14,7 @@ internal sealed class LongLiveNativeDamageAdjudicationMiddleware : ILongLiveBatt
         var plugin = LongLivePlugin.Instance;
         if (plugin == null)
         {
+            LongLiveBattleTraceRuntime.TrackNativeDecisionFallback(context.SkillId, context.Source, "plugin-null");
             return;
         }
 
@@ -30,6 +31,7 @@ internal sealed class LongLiveNativeDamageAdjudicationMiddleware : ILongLiveBatt
 
         if (!plugin.Native.TryAdjudicateDamageSegment(plugin.Options.NativeLibraryPath.Value, request, out var nativeDecision))
         {
+            LongLiveBattleTraceRuntime.TrackNativeDecisionFallback(context.SkillId, context.Source, "native-unavailable");
             return;
         }
 

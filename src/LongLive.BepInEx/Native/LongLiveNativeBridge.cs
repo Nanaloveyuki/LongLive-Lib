@@ -1,10 +1,15 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Runtime.InteropServices;
 
 namespace LongLive.BepInEx.Native;
 
 internal static class LongLiveNativeBridge
 {
+    private static readonly object SyncRoot = new object();
+    private static readonly Dictionary<string, NativeExports> ExportCache = new Dictionary<string, NativeExports>(StringComparer.OrdinalIgnoreCase);
+
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate int AbiVersionDelegate();
 
@@ -31,41 +36,112 @@ internal static class LongLiveNativeBridge
 
     public static int GetAbiVersion(string libraryPath)
     {
-        using (var library = NativeLibraryHandle.Load(libraryPath))
-        {
-            return library.GetDelegate<AbiVersionDelegate>("longlive_native_core_abi_version")();
-        }
+        return GetExports(libraryPath).AbiVersion();
     }
 
     public static int Add(string libraryPath, int left, int right)
     {
-        using (var library = NativeLibraryHandle.Load(libraryPath))
-        {
-            return library.GetDelegate<AddDelegate>("longlive_native_core_add")(left, right);
-        }
+        return GetExports(libraryPath).Add(left, right);
     }
 
     public static int IsReady(string libraryPath)
     {
-        using (var library = NativeLibraryHandle.Load(libraryPath))
-        {
-            return library.GetDelegate<IsReadyDelegate>("longlive_native_core_is_ready")();
-        }
+        return GetExports(libraryPath).IsReady();
     }
 
     public static int ComputeTurnDamage(string libraryPath, int attack, int skillPowerPercent, int flatBonus, int defense, int reductionPercent)
     {
-        using (var library = NativeLibraryHandle.Load(libraryPath))
-        {
-            return library.GetDelegate<ComputeTurnDamageDelegate>("longlive_native_core_compute_turn_damage")(attack, skillPowerPercent, flatBonus, defense, reductionPercent);
-        }
+        return GetExports(libraryPath).ComputeTurnDamage(attack, skillPowerPercent, flatBonus, defense, reductionPercent);
     }
 
     public static LongLiveNativeDamageSegmentDecision AdjudicateDamageSegment(string libraryPath, LongLiveNativeDamageSegmentRequest request)
     {
-        using (var library = NativeLibraryHandle.Load(libraryPath))
+        return GetExports(libraryPath).AdjudicateDamageSegment(request);
+    }
+
+    public static void ClearCache()
+    {
+        lock (SyncRoot)
         {
-            return library.GetDelegate<AdjudicateDamageSegmentDelegate>("longlive_native_core_adjudicate_damage_segment")(request);
+            foreach (var exports in ExportCache.Values)
+            {
+                exports.Dispose();
+            }
+
+            ExportCache.Clear();
+        }
+    }
+
+    private static NativeExports GetExports(string libraryPath)
+    {
+        var fullPath = Path.GetFullPath(libraryPath);
+
+        lock (SyncRoot)
+        {
+            if (ExportCache.TryGetValue(fullPath, out var cached))
+            {
+                return cached;
+            }
+
+            var loaded = NativeExports.Load(fullPath);
+            ExportCache.Add(fullPath, loaded);
+            return loaded;
+        }
+    }
+
+    private sealed class NativeExports : IDisposable
+    {
+        private readonly NativeLibraryHandle _library;
+
+        private NativeExports(
+            NativeLibraryHandle library,
+            AbiVersionDelegate abiVersion,
+            AddDelegate add,
+            IsReadyDelegate isReady,
+            ComputeTurnDamageDelegate computeTurnDamage,
+            AdjudicateDamageSegmentDelegate adjudicateDamageSegment)
+        {
+            _library = library;
+            AbiVersion = abiVersion;
+            Add = add;
+            IsReady = isReady;
+            ComputeTurnDamage = computeTurnDamage;
+            AdjudicateDamageSegment = adjudicateDamageSegment;
+        }
+
+        public AbiVersionDelegate AbiVersion { get; }
+
+        public AddDelegate Add { get; }
+
+        public IsReadyDelegate IsReady { get; }
+
+        public ComputeTurnDamageDelegate ComputeTurnDamage { get; }
+
+        public AdjudicateDamageSegmentDelegate AdjudicateDamageSegment { get; }
+
+        public static NativeExports Load(string libraryPath)
+        {
+            var library = NativeLibraryHandle.Load(libraryPath);
+            try
+            {
+                return new NativeExports(
+                    library,
+                    library.GetDelegate<AbiVersionDelegate>("longlive_native_core_abi_version"),
+                    library.GetDelegate<AddDelegate>("longlive_native_core_add"),
+                    library.GetDelegate<IsReadyDelegate>("longlive_native_core_is_ready"),
+                    library.GetDelegate<ComputeTurnDamageDelegate>("longlive_native_core_compute_turn_damage"),
+                    library.GetDelegate<AdjudicateDamageSegmentDelegate>("longlive_native_core_adjudicate_damage_segment"));
+            }
+            catch
+            {
+                library.Dispose();
+                throw;
+            }
+        }
+
+        public void Dispose()
+        {
+            _library.Dispose();
         }
     }
 

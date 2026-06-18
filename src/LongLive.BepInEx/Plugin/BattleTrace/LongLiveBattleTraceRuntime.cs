@@ -44,6 +44,8 @@ internal static class LongLiveBattleTraceRuntime
     private static readonly Dictionary<string, int> DamageDecisionReasonCounts = new Dictionary<string, int>(StringComparer.Ordinal);
     private static readonly Dictionary<string, int> SkillTerminationReasonCounts = new Dictionary<string, int>(StringComparer.Ordinal);
     private static readonly Dictionary<int, int> NativeLethalCountsBySkillId = new Dictionary<int, int>();
+    private static readonly Dictionary<int, int> NativeDecisionCountsBySkillId = new Dictionary<int, int>();
+    private static readonly Dictionary<int, int> NativeFallbackCountsBySkillId = new Dictionary<int, int>();
     private static readonly Dictionary<int, int> OverflowCountsBySkillId = new Dictionary<int, int>();
     private static readonly Dictionary<int, int> OverflowAmountBySkillId = new Dictionary<int, int>();
     private static readonly Dictionary<int, int> ReentryCountsByBuffId = new Dictionary<int, int>();
@@ -154,6 +156,8 @@ internal static class LongLiveBattleTraceRuntime
         DamageDecisionReasonCounts.Clear();
         SkillTerminationReasonCounts.Clear();
         NativeLethalCountsBySkillId.Clear();
+        NativeDecisionCountsBySkillId.Clear();
+        NativeFallbackCountsBySkillId.Clear();
         OverflowCountsBySkillId.Clear();
         OverflowAmountBySkillId.Clear();
         ReentryCountsByBuffId.Clear();
@@ -202,6 +206,8 @@ internal static class LongLiveBattleTraceRuntime
         LogSkillTypeBreakdownForTopBlockedSkill("battle summary Spell.onBuffTickByType type breakdown for top blocked skillId", SpellOnBuffTickByTypeCountsBySkillType, GuardBlockedSpellTickCountsBySkillId);
         LogSkillTypeBreakdownForTopBlockedSkill("battle summary blocked spell tick type breakdown for top blocked skillId", GuardBlockedSpellTickCountsBySkillType, GuardBlockedSpellTickCountsBySkillId);
         LogTopSummary("battle summary top native lethal skillId", NativeLethalCountsBySkillId);
+        LogTopSummary("battle summary top native decision skillId", NativeDecisionCountsBySkillId);
+        LogTopSummary("battle summary top native fallback skillId", NativeFallbackCountsBySkillId);
         LogTopSummary("battle summary top overflow skillId", OverflowCountsBySkillId);
         LogTopSummary("battle summary top overflow amount by skillId", OverflowAmountBySkillId);
         LogTopSummary("battle summary top dead-avatar reentry sources", DeadAvatarReentryCountsBySource);
@@ -936,6 +942,12 @@ internal static class LongLiveBattleTraceRuntime
         IncrementCounter(DamageDecisionReasonCounts, reason);
 
         var normalizedSkillId = NormalizePositiveKey(skillId);
+        if (decision.NativeDecisionApplied)
+        {
+            IncrementCounter(BattleEventCounts, "battle-guard.native-decision");
+            IncrementCounter(NativeDecisionCountsBySkillId, normalizedSkillId);
+        }
+
         if (decision.NativeDecisionApplied && decision.IsLethal)
         {
             IncrementCounter(BattleEventCounts, "battle-guard.native-lethal");
@@ -948,6 +960,19 @@ internal static class LongLiveBattleTraceRuntime
             IncrementCounter(OverflowCountsBySkillId, normalizedSkillId);
             AddCounterValue(OverflowAmountBySkillId, normalizedSkillId, decision.OverflowDamage);
         }
+    }
+
+    public static void TrackNativeDecisionFallback(int skillId, string source, string reason)
+    {
+        IncrementCounter(BattleEventCounts, "battle-guard.native-fallback");
+        IncrementCounter(NativeFallbackCountsBySkillId, NormalizePositiveKey(skillId));
+
+        if (!IsVerbose)
+        {
+            return;
+        }
+
+        Log($"battle-guard native fallback: skillId={skillId}, source={source}, reason={reason}");
     }
 
     private static int NormalizePositiveKey(int? value)
