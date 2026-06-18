@@ -27,6 +27,8 @@ public sealed class LongLiveBootstrapper
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _installers = new ILongLiveInstaller[]
         {
+            new LongLiveMapTraceInstaller(_logger, _options),
+            new LongLiveMapSnapshotInstaller(_logger, _options),
             new LongLiveBattleTraceInstaller(_logger, _options),
             new LongLiveBulkItemUseInstaller(_logger, _options),
             new LongLiveMainMenuEntryInstaller(_logger, _runtime, _options),
@@ -92,6 +94,8 @@ public sealed class LongLiveBootstrapper
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         LongLiveBulkItemUseRuntime.OnSceneLoaded(scene);
+        LongLiveMapTraceRuntime.OnUnitySceneLoaded(scene, mode);
+        LongLiveMapSnapshotRuntime.OnSceneLoaded(scene);
 
         if (_options.EnableDebugLogging.Value)
         {
@@ -125,6 +129,7 @@ public sealed class LongLiveBootstrapper
 
         _logger.LogInfo("Next runtime became available. Running LongLive installers.");
         RunInstallers();
+        PublishHostHandshakeState();
         MarkBootstrapCompleted();
         _runtimeInstallCompleted = true;
     }
@@ -143,5 +148,35 @@ public sealed class LongLiveBootstrapper
         _runtime.SetInt(LongLiveStateKeys.BootstrapCompleted, 1);
         _runtime.SetString(LongLiveStateKeys.LastEventTag, "host-bootstrap");
         _logger.LogInfo("LongLive host bootstrap completed.");
+    }
+
+    private void PublishHostHandshakeState()
+    {
+        if (!_runtime.IsAvailable)
+        {
+            return;
+        }
+
+        if (!LongLivePluginContext.TryGetHostHandshake(out var handshake) || handshake is null)
+        {
+            _logger.LogWarning("LongLive host handshake was unavailable during state publication.");
+            return;
+        }
+
+        _runtime.SetInt(LongLiveStateKeys.HostPresent, 1);
+        _runtime.SetString(LongLiveStateKeys.HostPluginGuid, handshake.PluginGuid);
+        _runtime.SetString(LongLiveStateKeys.HostPluginName, handshake.PluginName);
+        _runtime.SetString(LongLiveStateKeys.HostVersion, handshake.PluginVersion);
+        _runtime.SetString(LongLiveStateKeys.CurrentLocale, _runtime.Localization.GetCurrentLanguageDirectory() ?? string.Empty);
+        _runtime.SetInt(LongLiveStateKeys.HostHandshakeVersion, handshake.HandshakeVersion);
+        _runtime.SetString(LongLiveStateKeys.HostCapabilities, string.Join(",", handshake.Capabilities));
+        _runtime.SetString(LongLiveStateKeys.HostInstallRoot, handshake.InstallRoot);
+        _runtime.SetInt(LongLiveStateKeys.HostNextRuntimeAvailable, handshake.NextRuntimeAvailable ? 1 : 0);
+        _runtime.SetString(LongLiveStateKeys.HostPublishedAtUtc, handshake.InitializedAtUtc.ToString("O"));
+
+        if (_options.EnableDebugLogging.Value)
+        {
+            _logger.LogInfo($"LongLive published host handshake state to Next. version={handshake.PluginVersion}, capabilities={string.Join(",", handshake.Capabilities)}");
+        }
     }
 }

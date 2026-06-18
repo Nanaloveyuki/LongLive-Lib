@@ -2,6 +2,8 @@
 
 This project is the formal home for BepInEx-facing host code.
 
+It should be treated as `LongLive.Host` in practical distribution terms.
+
 ## Current Status
 
 The project is present in the main solution now, but its actual plugin entry source files are gated behind local host references.
@@ -68,6 +70,19 @@ The host project does not assume a repository-local sample path at runtime.
 
 The current `Next` content backend option is only a host-side shell. It preserves the future runtime injection composition point while still reporting deferred content installation today.
 
+There is now also an optional host map snapshot export path:
+
+- enable `EnableAutoExportMapSnapshot`
+- keep `EnableDebugLogging` enabled
+
+When active, the host exports the current observed map snapshot as JSON under:
+
+```text
+BepInEx/plugins/LongLiveExports/
+```
+
+The same export can also be triggered from the `LongLive Diagnostics` button on the main menu.
+
 The host also now includes a first visible in-game validation shell on the main menu. Its purpose is to make plugin load success obvious before deeper content or native-core integration is tested in-game.
 
 You can then build the host shell with:
@@ -80,6 +95,35 @@ If you want to build and deploy the host shell into the local `BepInEx/plugins` 
 
 ```powershell
 ./scripts/deploy-host.ps1
+```
+
+If you want to remove the currently deployed Host files before a clean redeploy, use:
+
+```powershell
+./scripts/clean-host.ps1
+```
+
+If you want to stage a separate local-test `Next` shell that represents the content-side install path players will see, use:
+
+```powershell
+./scripts/deploy-next-localtest.ps1
+```
+
+If you want to remove staged LongLive local-test groups before re-staging, use:
+
+```powershell
+./scripts/clean-next-localtest.ps1 -AllLongLive
+```
+
+That helper now stages two different content-side pieces by default:
+
+- the sample `LongLive.Bridge` local-test shell under `Lua/` and `NData/`
+- the optional JSON demo payload under `LongLive/json-mod-demo/`
+
+If you want the staged Bridge shell to default to a silent missing-host mode, pass:
+
+```powershell
+./scripts/deploy-next-localtest.ps1 -DisableMissingHostReminder
 ```
 
 On workshop-driven installations like the current local setup, the deploy helper also falls back to the plugin directory adjacent to `BepInEx/core` when the game root does not contain a standalone `BepInEx/plugins` directory.
@@ -100,13 +144,54 @@ Each image should match Next's current button size of `100x100`.
 
 If all three files are present, the host plugin replaces the cloned button sprites directly through the same main-menu patch timing that Next uses.
 
-If you want to stage the current JSON demo package as a real Next local-test mod under `觅长生/本地Mod测试/`, use:
+That local-test deploy helper creates a valid content-side shell under `本地Mod测试` and is intentionally separate from host deployment.
 
-```powershell
-./scripts/deploy-next-localtest.ps1
-```
+This distinction matters:
 
-That script creates a valid local group shell at `本地Mod测试/LongLive.LocalTest/plugins/Next/modLongLiveDemo/` and copies the current JSON demo package under `LongLive/json-mod-demo/`.
+- `LongLive.Host` belongs in `BepInEx/plugins`
+- `LongLive.Bridge` or content shells belong in `本地Mod测试/.../plugins/Next/...`
+
+The host now also exposes a minimal read-only handshake surface through `LongLivePluginContext`.
+
+Current handshake usage includes:
+
+- host presence detection
+- host version lookup
+- capability lookup
+- install-root reporting for diagnostics
+
+This is intended to be the stable detection entry point for a future `LongLive.Bridge` package.
+
+The first Bridge-facing state contract is also published into Next runtime state keys once runtime-backed installers are active.
+
+Examples:
+
+- `longlive.host.present`
+- `longlive.host.version`
+- `longlive.host.handshake_version`
+- `longlive.host.capabilities`
+- `longlive.host.install_root`
+
+The sample Bridge shell in `docs/samples/next-bridge-demo/` reads those keys through Next runtime on `EnterGame`.
+
+That sample Bridge shell also ships with a `modConfig` toggle for the missing-host reminder so players can disable the pop-tip without uninstalling the Bridge shell.
+
+The same sample shell now writes a stable compatibility token into Next state:
+
+- `longlive.bridge.last_status`
+
+Current values are:
+
+- `ok`
+- `missing`
+- `incompatible:handshake`
+- `incompatible:capability:<name>`
+
+For debugging, it also writes a verbose detail string into:
+
+- `longlive.bridge.last_status_detail`
+
+The Bridge-side Lua shell now loads its own localized reminder text from `Lua/i18n/` based on the host-published `longlive.current_locale` value.
 
 ## Intended Responsibility
 

@@ -9,6 +9,9 @@ public sealed class LongLiveHostOptions
         ConfigEntry<bool> enableContentRuntimeInspection,
         ConfigEntry<bool> enableNativeProbe,
         ConfigEntry<string> nativeLibraryPath,
+        ConfigEntry<bool> enableMapTrace,
+        ConfigEntry<bool> enableMapTraceVerbose,
+        ConfigEntry<bool> enableAutoExportMapSnapshot,
         ConfigEntry<bool> enableBattleTrace,
         ConfigEntry<bool> enableBattleTraceVerbose,
         ConfigEntry<bool> enableExperimentalBattleGuard,
@@ -25,6 +28,9 @@ public sealed class LongLiveHostOptions
         EnableContentRuntimeInspection = enableContentRuntimeInspection;
         EnableNativeProbe = enableNativeProbe;
         NativeLibraryPath = nativeLibraryPath;
+        EnableMapTrace = enableMapTrace;
+        EnableMapTraceVerbose = enableMapTraceVerbose;
+        EnableAutoExportMapSnapshot = enableAutoExportMapSnapshot;
         EnableBattleTrace = enableBattleTrace;
         EnableBattleTraceVerbose = enableBattleTraceVerbose;
         EnableExperimentalBattleGuard = enableExperimentalBattleGuard;
@@ -45,6 +51,12 @@ public sealed class LongLiveHostOptions
     public ConfigEntry<bool> EnableNativeProbe { get; }
 
     public ConfigEntry<string> NativeLibraryPath { get; }
+
+    public ConfigEntry<bool> EnableMapTrace { get; }
+
+    public ConfigEntry<bool> EnableMapTraceVerbose { get; }
+
+    public ConfigEntry<bool> EnableAutoExportMapSnapshot { get; }
 
     public ConfigEntry<bool> EnableBattleTrace { get; }
 

@@ -3,6 +3,7 @@ using System.IO;
 using BepInEx.Logging;
 using HarmonyLib;
 using LongLive.BepInEx.Native;
+using LongLive.Mods.Maps;
 using LongLive.Next.Runtime;
 using UnityEngine;
 using UnityEngine.Events;
@@ -198,21 +199,37 @@ public sealed class LongLiveMainMenuEntryInstaller : ILongLiveInstaller
 
     private void ShowDiagnostics()
     {
+        var localizer = new LongLiveTextLocalizer(_runtime);
         var report = _runtime.ContentInspector.Inspect();
         var nativeProbe = LongLivePlugin.Instance?.Native.CurrentProbeResult ?? LongLiveNativeProbeResult.Disabled();
+        var snapshotService = new LongLiveMapSnapshotExportService();
+        var snapshotExport = snapshotService.ExportCurrentSnapshot();
+        var snapshot = snapshotService.CaptureCurrentSnapshot();
+        LongLivePluginContext.TryGetHostHandshake(out var handshake);
         var lines = new[]
         {
-            $"Plugin: {LongLivePluginMetadata.PluginName} {LongLivePluginMetadata.PluginVersion}",
-            $"Next runtime available: {_runtime.IsAvailable}",
-            $"Content inspection available: {report.IsAvailable}",
-            $"Local mods dir resolved: {report.Capabilities.CanResolveLocalModsDirectory}",
-            $"Content backend: {_options.ContentBackend.Value}",
-            $"Native probe enabled: {nativeProbe.Enabled}",
-            $"Native probe success: {nativeProbe.Success}",
-            $"Native probe summary: {nativeProbe.Summary}",
-            $"Native probe abi: {nativeProbe.AbiVersion?.ToString() ?? "n/a"}",
-            $"Native probe ready: {nativeProbe.ReadyFlag?.ToString() ?? "n/a"}",
-            $"Native probe sample damage: {nativeProbe.TurnDamage?.ToString() ?? "n/a"}",
+            $"{localizer.Get("diagnostics.plugin")}: {LongLivePluginMetadata.PluginName} {LongLivePluginMetadata.PluginVersion}",
+            $"{localizer.Get("diagnostics.host_handshake_available")}: {handshake is not null}",
+            $"{localizer.Get("diagnostics.host_handshake_version")}: {handshake?.HandshakeVersion.ToString() ?? localizer.Get("common.na")}",
+            $"{localizer.Get("diagnostics.host_install_root")}: {localizer.GetOrNa(handshake?.InstallRoot)}",
+            $"{localizer.Get("diagnostics.host_capabilities")}: {(handshake is null ? localizer.Get("common.na") : string.Join(", ", handshake.Capabilities))}",
+            $"{localizer.Get("diagnostics.next_runtime_available")}: {_runtime.IsAvailable}",
+            $"{localizer.Get("diagnostics.content_inspection_available")}: {report.IsAvailable}",
+            $"{localizer.Get("diagnostics.local_mods_resolved")}: {report.Capabilities.CanResolveLocalModsDirectory}",
+            $"{localizer.Get("diagnostics.content_backend")}: {_options.ContentBackend.Value}",
+            $"{localizer.Get("diagnostics.map_snapshot_scenes")}: {snapshot.Scenes.Count}",
+            $"{localizer.Get("diagnostics.map_snapshot_pages")}: {snapshot.Pages.Count}",
+            $"{localizer.Get("diagnostics.map_snapshot_highlights")}: {snapshot.HighlightRegions.Count}",
+            $"{localizer.Get("diagnostics.map_snapshot_nodes")}: {snapshot.Nodes.Count}",
+            $"{localizer.Get("diagnostics.map_snapshot_export_success")}: {snapshotExport.Success}",
+            $"{localizer.Get("diagnostics.map_snapshot_export_path")}: {(snapshotExport.Success ? snapshotExport.Path : localizer.Get("common.na"))}",
+            $"{localizer.Get("diagnostics.map_snapshot_export_summary")}: {snapshotExport.Summary}",
+            $"{localizer.Get("diagnostics.native_probe_enabled")}: {nativeProbe.Enabled}",
+            $"{localizer.Get("diagnostics.native_probe_success")}: {nativeProbe.Success}",
+            $"{localizer.Get("diagnostics.native_probe_summary")}: {nativeProbe.Summary}",
+            $"{localizer.Get("diagnostics.native_probe_abi")}: {nativeProbe.AbiVersion?.ToString() ?? localizer.Get("common.na")}",
+            $"{localizer.Get("diagnostics.native_probe_ready")}: {nativeProbe.ReadyFlag?.ToString() ?? localizer.Get("common.na")}",
+            $"{localizer.Get("diagnostics.native_probe_sample_damage")}: {nativeProbe.TurnDamage?.ToString() ?? localizer.Get("common.na")}",
         };
 
         var body = string.Join("\n", lines);
@@ -242,7 +259,8 @@ public sealed class LongLiveMainMenuEntryInstaller : ILongLiveInstaller
             return false;
         }
 
-        createDialog.Invoke(null, new object?[] { "LongLive Diagnostics", body, false, null, null });
+        var localizer = new LongLiveTextLocalizer(_runtime);
+        createDialog.Invoke(null, new object?[] { localizer.Get("diagnostics.title"), body, false, null, null });
         return true;
     }
 
