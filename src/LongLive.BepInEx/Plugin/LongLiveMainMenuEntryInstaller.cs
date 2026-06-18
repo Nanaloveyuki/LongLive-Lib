@@ -205,6 +205,7 @@ public sealed class LongLiveMainMenuEntryInstaller : ILongLiveInstaller
         var snapshotService = new LongLiveMapSnapshotExportService();
         var snapshotExport = snapshotService.ExportCurrentSnapshot();
         var snapshot = snapshotService.CaptureCurrentSnapshot();
+        var bridgeStatus = LongLiveBridgeStatusSnapshot.FromRuntime(_runtime);
         LongLivePluginContext.TryGetHostHandshake(out var handshake);
         var lines = new[]
         {
@@ -217,6 +218,16 @@ public sealed class LongLiveMainMenuEntryInstaller : ILongLiveInstaller
             $"{localizer.Get("diagnostics.content_inspection_available")}: {report.IsAvailable}",
             $"{localizer.Get("diagnostics.local_mods_resolved")}: {report.Capabilities.CanResolveLocalModsDirectory}",
             $"{localizer.Get("diagnostics.content_backend")}: {_options.ContentBackend.Value}",
+            $"{localizer.Get("diagnostics.bridge_reported")}: {bridgeStatus.HasReport}",
+            $"{localizer.Get("diagnostics.bridge_status")}: {(bridgeStatus.HasReport ? bridgeStatus.Status : localizer.Get("common.not_reported_yet"))}",
+            $"{localizer.Get("diagnostics.bridge_status_detail")}: {(bridgeStatus.HasReport ? bridgeStatus.Detail : localizer.Get("common.not_reported_yet"))}",
+            $"{localizer.Get("diagnostics.bridge_host_version")}: {(bridgeStatus.HasReport ? localizer.GetOrNa(bridgeStatus.HostVersion) : localizer.Get("common.not_reported_yet"))}",
+            $"{localizer.Get("diagnostics.bridge_host_present")}: {(bridgeStatus.HasReport ? bridgeStatus.HostPresent.ToString() : localizer.Get("common.not_reported_yet"))}",
+            $"{localizer.Get("diagnostics.bridge_host_compatible")}: {(bridgeStatus.HasReport ? bridgeStatus.HostCompatible.ToString() : localizer.Get("common.not_reported_yet"))}",
+            $"{localizer.Get("diagnostics.bridge_host_reason")}: {(bridgeStatus.HasReport ? localizer.GetOrNa(bridgeStatus.CompatibilityReason) : localizer.Get("common.not_reported_yet"))}",
+            $"{localizer.Get("diagnostics.bridge_host_handshake_version")}: {(bridgeStatus.HasReport ? bridgeStatus.HandshakeVersion.ToString() : localizer.Get("common.not_reported_yet"))}",
+            $"{localizer.Get("diagnostics.bridge_host_capabilities")}: {(bridgeStatus.HasReport ? localizer.GetOrNa(bridgeStatus.Capabilities) : localizer.Get("common.not_reported_yet"))}",
+            $"{localizer.Get("diagnostics.bridge_host_reminder")}: {(bridgeStatus.HasReport ? bridgeStatus.ReminderEnabled.ToString() : localizer.Get("common.not_reported_yet"))}",
             $"{localizer.Get("diagnostics.map_snapshot_scenes")}: {snapshot.Scenes.Count}",
             $"{localizer.Get("diagnostics.map_snapshot_pages")}: {snapshot.Pages.Count}",
             $"{localizer.Get("diagnostics.map_snapshot_highlights")}: {snapshot.HighlightRegions.Count}",

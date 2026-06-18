@@ -24,6 +24,24 @@ public static class LongLiveStateKeys
 
     public const string HostPublishedAtUtc = "longlive.host.published_at_utc";
 
+    public const string BridgeLastStatus = "longlive.bridge.last_status";
+
+    public const string BridgeLastStatusDetail = "longlive.bridge.last_status_detail";
+
+    public const string BridgeLastHostVersion = "longlive.bridge.last_host_version";
+
+    public const string BridgeLastHostPresent = "longlive.bridge.last_host_present";
+
+    public const string BridgeLastMissingHostReminderEnabled = "longlive.bridge.last_missing_host_reminder_enabled";
+
+    public const string BridgeLastHostCompatible = "longlive.bridge.last_host_compatible";
+
+    public const string BridgeLastHostCompatibilityReason = "longlive.bridge.last_host_compatibility_reason";
+
+    public const string BridgeLastHostHandshakeVersion = "longlive.bridge.last_host_handshake_version";
+
+    public const string BridgeLastHostCapabilities = "longlive.bridge.last_host_capabilities";
+
     public const string BootstrapCompleted = "longlive.bootstrap_completed";
 
     public const string LastError = "longlive.last_error";
