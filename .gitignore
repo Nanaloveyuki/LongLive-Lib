@@ -26,3 +26,6 @@ devdocs/
 # C# build files
 bin/
 obj/
+
+# Publishing artifacts
+artifacts/
