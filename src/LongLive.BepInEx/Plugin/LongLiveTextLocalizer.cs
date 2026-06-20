@@ -63,9 +63,21 @@ internal sealed class LongLiveTextLocalizer
 
     private static string NormalizeLocale(string? languageDir)
     {
-        if (string.Equals(languageDir, "zh-CN", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(languageDir, "zh-Hans", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(languageDir, "zh", StringComparison.OrdinalIgnoreCase))
+        if (languageDir is null)
+        {
+            return DefaultLocale;
+        }
+
+        var normalized = languageDir.Trim();
+        if (normalized.Length == 0)
+        {
+            return DefaultLocale;
+        }
+
+        if (normalized.StartsWith("zh", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(normalized, "cn", StringComparison.OrdinalIgnoreCase) ||
+            normalized.IndexOf("中文", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            normalized.IndexOf("chinese", StringComparison.OrdinalIgnoreCase) >= 0)
         {
             return "zh-CN";
         }

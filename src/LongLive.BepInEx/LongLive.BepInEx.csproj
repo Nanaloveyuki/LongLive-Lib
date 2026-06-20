@@ -48,6 +48,10 @@
       <HintPath>$(McsGameRoot)\觅长生_Data\Managed\UnityEngine.UI.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>$(McsGameRoot)\觅长生_Data\Managed\UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="UnityEngine.UIModule">
       <HintPath>$(McsGameRoot)\觅长生_Data\Managed\UnityEngine.UIModule.dll</HintPath>
       <Private>false</Private>

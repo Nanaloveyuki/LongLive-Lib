@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using BepInEx.Logging;
 using HarmonyLib;
 using LongLive.BepInEx.Native;
@@ -18,6 +19,7 @@ public sealed class LongLiveMainMenuEntryInstaller : ILongLiveInstaller
     private readonly ManualLogSource _logger;
     private readonly NextRuntimeFacade _runtime;
     private readonly LongLiveHostOptions _options;
+    private LongLiveMainMenuPanel? _panel;
 
     public LongLiveMainMenuEntryInstaller(ManualLogSource logger, NextRuntimeFacade runtime, LongLiveHostOptions options)
     {
@@ -32,6 +34,32 @@ public sealed class LongLiveMainMenuEntryInstaller : ILongLiveInstaller
     {
         _instance = this;
         _logger.LogInfo("LongLive main-menu entry installer armed with Harmony main-menu patch.");
+        TryInstallEntryImmediately();
+    }
+
+    private void TryInstallEntryImmediately()
+    {
+        var mainUi = MainUIMag.inst;
+        if (mainUi is null)
+        {
+            if (_options.EnableDebugLogging.Value)
+            {
+                _logger.LogInfo("LongLive immediate main-menu install skipped because MainUIMag.inst is null.");
+            }
+
+            return;
+        }
+
+        try
+        {
+            mainUi.OpenMain();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning($"LongLive immediate main-menu OpenMain refresh failed: {ex.GetType().Name}: {ex.Message}");
+        }
+
+        InstallEntry(mainUi);
     }
 
     private void InstallEntry(MainUIMag mainUi)
@@ -56,7 +84,16 @@ public sealed class LongLiveMainMenuEntryInstaller : ILongLiveInstaller
         var existingEntry = parent.Find("LongLiveEntry")?.gameObject;
         if (existingEntry is not null)
         {
-            UnityEngine.Object.Destroy(existingEntry);
+            existingEntry.transform.localPosition = ResolveEntryLocalPosition(parent, sourceButton.transform.localPosition);
+            existingEntry.transform.SetAsLastSibling();
+            existingEntry.SetActive(true);
+
+            if (_options.EnableDebugLogging.Value)
+            {
+                _logger.LogInfo($"LongLive main-menu entry already existed and was refreshed in place, localPosition={existingEntry.transform.localPosition}");
+            }
+
+            return;
         }
 
         var entry = UnityEngine.Object.Instantiate(sourceButton, parent, true);
@@ -200,11 +237,73 @@ public sealed class LongLiveMainMenuEntryInstaller : ILongLiveInstaller
     private void ShowDiagnostics()
     {
         var localizer = new LongLiveTextLocalizer(_runtime);
+        if (TryShowPanel(localizer))
+        {
+            return;
+        }
+
+        if (!TryShowEntryMenu(localizer))
+        {
+            ShowDiagnosticsReport(localizer);
+        }
+    }
+
+    private bool TryShowPanel(LongLiveTextLocalizer localizer)
+    {
+        var mainUi = MainUIMag.inst;
+        if (mainUi?.新主界面 is null)
+        {
+            return false;
+        }
+
+        _panel ??= new LongLiveMainMenuPanel(_logger, _runtime, _options, localizer);
+        return _panel.TryShow(mainUi.新主界面.transform);
+    }
+
+    private bool TryShowEntryMenu(LongLiveTextLocalizer localizer)
+    {
+        var dialogType = FindType("SkySwordKill.Next.FGUI.Dialog.WindowConfirmDialog");
+        if (dialogType is null)
+        {
+            return false;
+        }
+
+        var createDialog = dialogType.GetMethod(
+            "CreateDialog",
+            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static,
+            binder: null,
+            types: new[] { typeof(string), typeof(string), typeof(bool), typeof(Action), typeof(Action) },
+            modifiers: null);
+
+        if (createDialog is null)
+        {
+            return false;
+        }
+
+        createDialog.Invoke(null, new object?[]
+        {
+            localizer.Get("entry.menu.title"),
+            localizer.Get("entry.menu.body"),
+            true,
+            (Action)(() => ShowCompatibilitySettings(localizer)),
+            (Action)(() => ShowDiagnosticsReport(localizer)),
+        });
+
+        return true;
+    }
+
+    private void ShowDiagnosticsReport(LongLiveTextLocalizer localizer)
+    {
         var report = _runtime.ContentInspector.Inspect();
         var nativeProbe = LongLivePlugin.Instance?.Native.CurrentProbeResult ?? LongLiveNativeProbeResult.Disabled();
         var snapshotService = new LongLiveMapSnapshotExportService();
         var snapshotExport = snapshotService.ExportCurrentSnapshot();
         var snapshot = snapshotService.CaptureCurrentSnapshot();
+        var compatibility = LongLivePluginContext.GetCompatibilitySnapshot();
+        var compatibilityStatus = compatibility.Activations.Count > 0
+            ? string.Join(", ", compatibility.Activations.Select(static activation => activation.RedirectId + "=" + activation.StatusCode + "(" + activation.InvocationCount + ")"))
+            : localizer.Get("common.not_reported_yet");
+        var compatibilityToggles = LongLiveCompatibilitySettingsPresenter.BuildToggleStatusSummary(localizer, _options);
         var bridgeStatus = LongLiveBridgeStatusSnapshot.FromRuntime(_runtime);
         LongLivePluginContext.TryGetHostHandshake(out var handshake);
         var lines = new[]
@@ -228,6 +327,11 @@ public sealed class LongLiveMainMenuEntryInstaller : ILongLiveInstaller
             $"{localizer.Get("diagnostics.bridge_host_handshake_version")}: {(bridgeStatus.HasReport ? bridgeStatus.HandshakeVersion.ToString() : localizer.Get("common.not_reported_yet"))}",
             $"{localizer.Get("diagnostics.bridge_host_capabilities")}: {(bridgeStatus.HasReport ? localizer.GetOrNa(bridgeStatus.Capabilities) : localizer.Get("common.not_reported_yet"))}",
             $"{localizer.Get("diagnostics.bridge_host_reminder")}: {(bridgeStatus.HasReport ? bridgeStatus.ReminderEnabled.ToString() : localizer.Get("common.not_reported_yet"))}",
+            $"{localizer.Get("diagnostics.compatibility_library_count")}: {compatibility.Libraries.Count}",
+            $"{localizer.Get("diagnostics.compatibility_redirect_count")}: {compatibility.Redirects.Count}",
+            $"{localizer.Get("diagnostics.compatibility_activation_count")}: {compatibility.Activations.Count}",
+            $"{localizer.Get("diagnostics.compatibility_status")}: {compatibilityStatus}",
+            $"{localizer.Get("diagnostics.compatibility_toggles")}: {compatibilityToggles}",
             $"{localizer.Get("diagnostics.map_snapshot_scenes")}: {snapshot.Scenes.Count}",
             $"{localizer.Get("diagnostics.map_snapshot_pages")}: {snapshot.Pages.Count}",
             $"{localizer.Get("diagnostics.map_snapshot_highlights")}: {snapshot.HighlightRegions.Count}",
@@ -248,6 +352,101 @@ public sealed class LongLiveMainMenuEntryInstaller : ILongLiveInstaller
         {
             _logger.LogInfo(body);
         }
+    }
+
+    private void ShowCompatibilitySettings(LongLiveTextLocalizer localizer, Action<LongLiveTextLocalizer>? onComplete = null)
+    {
+        if (!TryShowCompatibilityDialogStep(localizer, 0, onComplete))
+        {
+            var title = localizer.Get("compatibility.menu.title");
+            var body = LongLiveCompatibilitySettingsPresenter.BuildSummary(localizer, _options);
+            _logger.LogInfo(title + "\n" + body);
+            onComplete?.Invoke(localizer);
+        }
+    }
+
+    private bool TryShowCompatibilityDialogStep(LongLiveTextLocalizer localizer, int stepIndex, Action<LongLiveTextLocalizer>? onComplete)
+    {
+        var dialogType = FindType("SkySwordKill.Next.FGUI.Dialog.WindowConfirmDialog");
+        if (dialogType is null)
+        {
+            return false;
+        }
+
+        var createDialog = dialogType.GetMethod(
+            "CreateDialog",
+            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static,
+            binder: null,
+            types: new[] { typeof(string), typeof(string), typeof(bool), typeof(Action), typeof(Action) },
+            modifiers: null);
+
+        if (createDialog is null)
+        {
+            return false;
+        }
+
+        var title = localizer.Get("compatibility.menu.title");
+        var body = LongLiveCompatibilitySettingsPresenter.BuildSummary(localizer, _options) + "\n\n" + BuildCompatibilityDialogStepHint(localizer, stepIndex);
+
+        createDialog.Invoke(null, new object?[]
+        {
+            title,
+            body,
+            true,
+            (Action)(() => HandleCompatibilityDialogConfirm(localizer, stepIndex, onComplete)),
+            (Action)(() => HandleCompatibilityDialogCancel(localizer, stepIndex, onComplete)),
+        });
+
+        return true;
+    }
+
+    private void HandleCompatibilityDialogConfirm(LongLiveTextLocalizer localizer, int stepIndex, Action<LongLiveTextLocalizer>? onComplete)
+    {
+        switch (stepIndex)
+        {
+            case 0:
+                LongLiveCompatibilitySettingsPresenter.CycleEasyBatch(_options);
+                TryShowCompatibilityDialogStep(localizer, 1, onComplete);
+                return;
+            case 1:
+                LongLiveCompatibilitySettingsPresenter.CycleWhiteZe(_options);
+                TryShowCompatibilityDialogStep(localizer, 2, onComplete);
+                return;
+            case 2:
+                LongLiveCompatibilitySettingsPresenter.CycleVTools(_options);
+                onComplete?.Invoke(localizer);
+                return;
+            default:
+                onComplete?.Invoke(localizer);
+                return;
+        }
+    }
+
+    private void HandleCompatibilityDialogCancel(LongLiveTextLocalizer localizer, int stepIndex, Action<LongLiveTextLocalizer>? onComplete)
+    {
+        switch (stepIndex)
+        {
+            case 0:
+                TryShowCompatibilityDialogStep(localizer, 1, onComplete);
+                return;
+            case 1:
+                TryShowCompatibilityDialogStep(localizer, 2, onComplete);
+                return;
+            default:
+                onComplete?.Invoke(localizer);
+                return;
+        }
+    }
+
+    private static string BuildCompatibilityDialogStepHint(LongLiveTextLocalizer localizer, int stepIndex)
+    {
+        return stepIndex switch
+        {
+            0 => localizer.Get("compatibility.menu.step_easybatch"),
+            1 => localizer.Get("compatibility.menu.step_whiteze"),
+            2 => localizer.Get("compatibility.menu.step_vtools"),
+            _ => localizer.Get("compatibility.menu.step_done"),
+        };
     }
 
     private bool TryShowNextConfirmWindow(string body)
