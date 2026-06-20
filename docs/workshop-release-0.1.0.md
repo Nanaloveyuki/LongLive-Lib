@@ -108,9 +108,9 @@ When uploading, select the package root folder itself.
 
 That folder must be the one that directly contains `plugins/`.
 
-For the repository staging script, that means selecting a folder shaped like:
+For the repository staging script, that means selecting a stable folder shaped like:
 
-- `LongLive.Lib.0.1.0/`
+- `LongLive.Lib/`
 
 And inside it:
 
@@ -134,7 +134,7 @@ Default usage:
 This stages a release folder under:
 
 ```text
-artifacts/workshop/LongLive.Lib.0.1.0/
+artifacts/workshop/LongLive.Lib/
 ```
 
 That staged folder is the one to select in the in-game uploader.
@@ -174,3 +174,5 @@ Keep the generated `Mod.bin` file inside the uploaded package root.
 That file is required for future in-place workshop updates through the in-game uploader.
 
 The staging script preserves an existing `Mod.bin` when rebuilding the same staged package directory, so the upload/update flow can continue using the same folder.
+
+If the staging path is migrated from an older versioned folder such as `LongLive.Lib.0.1.0/`, the script should recover the most recent legacy `Mod.bin` into the fixed `LongLive.Lib/` path before rebuilding.

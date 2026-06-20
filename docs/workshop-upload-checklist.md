@@ -13,7 +13,7 @@ Run:
 Current staged upload root:
 
 ```text
-artifacts/workshop/LongLive.Lib.0.2.0/
+artifacts/workshop/LongLive.Lib/
 ```
 
 This is the folder to select in the uploader.
@@ -78,7 +78,7 @@ Keep the generated `Mod.bin` file in the same staged package root.
 
 That file is required for future updates through the in-game uploader.
 
-The staging script preserves `Mod.bin` if it already exists in that folder.
+The staging script preserves `Mod.bin` if it already exists in that folder and will also try to recover it from an older versioned `LongLive.Lib.*` staging folder on the first migration to the fixed path.
 
 ## 6. Local Test Cleanup
 

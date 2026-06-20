@@ -19,9 +19,39 @@ $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $buildScript = Join-Path (Join-Path (Split-Path -Parent $PSScriptRoot) "deploy") "build-host.ps1"
 $bridgePackagePath = Join-Path $repoRoot $BridgePackage
 $outputDir = Join-Path $repoRoot "src\LongLive.BepInEx\bin\$Configuration\net472"
-$stageRoot = Join-Path $repoRoot (Join-Path $OutputRoot "$PackageName.$Version")
+$stageRoot = Join-Path $repoRoot (Join-Path $OutputRoot $PackageName)
 $pluginsRoot = Join-Path $stageRoot "plugins"
 $preservedModBinBytes = $null
+
+function Get-LegacyModBinPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$WorkshopRoot,
+        [Parameter(Mandatory = $true)]
+        [string]$PackageName,
+        [Parameter(Mandatory = $true)]
+        [string]$CurrentStageRoot
+    )
+
+    if (-not (Test-Path $WorkshopRoot)) {
+        return $null
+    }
+
+    $legacyModBinPath = Get-ChildItem -LiteralPath $WorkshopRoot -Directory -Force |
+        Where-Object {
+            $_.FullName -ne $CurrentStageRoot -and $_.Name -like ($PackageName + ".*")
+        } |
+        Sort-Object LastWriteTime -Descending |
+        ForEach-Object {
+            $candidatePath = Join-Path $_.FullName "Mod.bin"
+            if (Test-Path $candidatePath) {
+                return $candidatePath
+            }
+        } |
+        Select-Object -First 1
+
+    return $legacyModBinPath
+}
 
 function Copy-FilteredTree {
     param(
@@ -92,6 +122,14 @@ if (Test-Path $resolvedStageRoot) {
     }
 
     Get-ChildItem -LiteralPath $resolvedStageRoot -Force | Where-Object { $_.Name -ne 'Mod.bin' } | Remove-Item -Recurse -Force
+}
+
+if ($preservedModBinBytes -eq $null) {
+    $legacyModBinPath = Get-LegacyModBinPath -WorkshopRoot (Join-Path $repoRoot $OutputRoot) -PackageName $PackageName -CurrentStageRoot $resolvedStageRoot
+    if ($null -ne $legacyModBinPath) {
+        $preservedModBinBytes = [System.IO.File]::ReadAllBytes($legacyModBinPath)
+        Write-Host "Recovered Mod.bin from legacy staged package: $legacyModBinPath"
+    }
 }
 
 New-Item -ItemType Directory -Force -Path $pluginsRoot | Out-Null
@@ -185,7 +223,8 @@ if (-not $SkipBridge) {
 
 Write-Host "Staged workshop package root: $resolvedStageRoot"
 Write-Host "Upload this folder in the in-game workshop uploader (the folder that directly contains plugins)."
+Write-Host "Requested version label: $Version"
 Write-Host "Bridge included: $(-not $SkipBridge)"
 Write-Host "Native included: $IncludeNative"
 Write-Host "Assets included: $(-not $SkipAssets)"
-Write-Host "Mod.bin preserved: $($preservedModBinBytes -ne $null)"
+Write-Host "Mod.bin preserved: $($null -ne $preservedModBinBytes)"

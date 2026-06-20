@@ -49,6 +49,8 @@ To stage a workshop upload folder:
 ./scripts/longlive.ps1 -Action release-stage -Version 0.2.0
 ```
 
+The staged upload root stays fixed at `artifacts/workshop/LongLive.Lib/` so the game-generated `Mod.bin` can keep tracking the same workshop item across updates.
+
 ## Direct Category Entry Points
 
 If you prefer direct scripts, the categorized paths are:
