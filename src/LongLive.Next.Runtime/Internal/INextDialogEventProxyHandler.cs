@@ -2,7 +2,7 @@ using System;
 
 namespace LongLive.Next.Runtime.Internal;
 
-internal interface INextDialogEventProxyHandler
+public interface INextDialogEventProxyHandler
 {
     void Execute(object? nativeCommand, object? nativeEnvironment, Action? callback);
 }

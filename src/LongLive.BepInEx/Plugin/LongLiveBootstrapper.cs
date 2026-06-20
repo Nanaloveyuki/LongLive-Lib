@@ -27,6 +27,8 @@ public sealed class LongLiveBootstrapper
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _installers = new ILongLiveInstaller[]
         {
+            new LongLiveCompatibilityInstaller(_logger, LongLivePluginContext.Compatibility, _runtime),
+            new LongLiveSceneRoutingInstaller(_logger),
             new LongLiveMapTraceInstaller(_logger, _options),
             new LongLiveMapSnapshotInstaller(_logger, _options),
             new LongLiveBattleTraceInstaller(_logger, _options),
@@ -138,8 +140,16 @@ public sealed class LongLiveBootstrapper
     {
         foreach (var installer in _installers)
         {
-            _logger.LogInfo($"Running installer: {installer.Name}");
-            installer.Install();
+            try
+            {
+                _logger.LogInfo($"Running installer: {installer.Name}");
+                installer.Install();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Installer failed: {installer.Name}, error={ex.GetType().Name}: {ex.Message}");
+                _logger.LogError(ex);
+            }
         }
     }
 

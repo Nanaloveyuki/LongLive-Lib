@@ -2,13 +2,20 @@ using System;
 
 namespace LongLive.Next.Runtime.Internal;
 
-internal static class NextDialogEventProxyFactory
+public static class NextDialogEventProxyFactory
 {
-    public static bool IsSupported => false;
+    public static Func<Type, INextDialogEventProxyHandler, object>? Factory { get; set; }
+
+    public static bool IsSupported => Factory is not null;
 
     public static object Create(Type dialogEventInterfaceType, INextDialogEventProxyHandler handler)
     {
-        throw new PlatformNotSupportedException(
-            "Next dialog-event proxy generation requires System.Reflection.Emit, which is unavailable on the current host runtime.");
+        if (Factory is null)
+        {
+            throw new PlatformNotSupportedException(
+                "LongLive.Next command registration currently requires a host-provided dialog-event proxy factory, but none has been configured.");
+        }
+
+        return Factory(dialogEventInterfaceType, handler);
     }
 }

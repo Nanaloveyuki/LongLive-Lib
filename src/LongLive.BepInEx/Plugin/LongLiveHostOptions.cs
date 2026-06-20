@@ -18,6 +18,9 @@ public sealed class LongLiveHostOptions
         ConfigEntry<bool> enableBulkItemUseOptimization,
         ConfigEntry<int> bulkItemUseChunkSize,
         ConfigEntry<float> bulkItemUseFrameBudgetMs,
+        ConfigEntry<bool> enableEasyBatchCompatibility,
+        ConfigEntry<bool> enableWhiteZeCompatibility,
+        ConfigEntry<bool> enableVToolsCompatibility,
         ConfigEntry<bool> enableDemoCommandRegistration,
         ConfigEntry<bool> enableDemoQueryRegistration,
         ConfigEntry<bool> enableJsonModDemoInstall,
@@ -37,6 +40,9 @@ public sealed class LongLiveHostOptions
         EnableBulkItemUseOptimization = enableBulkItemUseOptimization;
         BulkItemUseChunkSize = bulkItemUseChunkSize;
         BulkItemUseFrameBudgetMs = bulkItemUseFrameBudgetMs;
+        EnableEasyBatchCompatibility = enableEasyBatchCompatibility;
+        EnableWhiteZeCompatibility = enableWhiteZeCompatibility;
+        EnableVToolsCompatibility = enableVToolsCompatibility;
         EnableDemoCommandRegistration = enableDemoCommandRegistration;
         EnableDemoQueryRegistration = enableDemoQueryRegistration;
         EnableJsonModDemoInstall = enableJsonModDemoInstall;
@@ -69,6 +75,12 @@ public sealed class LongLiveHostOptions
     public ConfigEntry<int> BulkItemUseChunkSize { get; }
 
     public ConfigEntry<float> BulkItemUseFrameBudgetMs { get; }
+
+    public ConfigEntry<bool> EnableEasyBatchCompatibility { get; }
+
+    public ConfigEntry<bool> EnableWhiteZeCompatibility { get; }
+
+    public ConfigEntry<bool> EnableVToolsCompatibility { get; }
 
     public ConfigEntry<bool> EnableDemoCommandRegistration { get; }
 

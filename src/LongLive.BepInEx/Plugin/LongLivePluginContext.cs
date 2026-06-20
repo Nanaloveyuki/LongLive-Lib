@@ -2,13 +2,90 @@ using System;
 using System.Collections.Generic;
 using BepInEx.Configuration;
 using BepInEx.Logging;
+using LongLive.Mods.Compatibility;
+using LongLive.Mods.Maps;
+using LongLive.Mods.SceneRouting;
 using LongLive.Next.Runtime;
 
 namespace LongLive.BepInEx.Plugin;
 
 public static class LongLivePluginContext
 {
+    private static ILongLiveSceneRoutingService? _sceneRouting;
+    private static LongLiveSceneRoutingHost? _sceneRoutingHost;
+    private static LongLiveCompatibilityRuntime? _compatibility;
+
     public static bool IsInitialized => LongLivePlugin.Instance is not null;
+
+    public static ILongLiveSceneRoutingService SceneRouting
+    {
+        get
+        {
+            if (_sceneRouting is null)
+            {
+                _sceneRouting = new LongLiveBepInExSceneRoutingService(GetLogger());
+            }
+
+            return _sceneRouting;
+        }
+    }
+
+    public static LongLiveSceneRoutingHost SceneRoutingHost
+    {
+        get
+        {
+            if (_sceneRoutingHost is null)
+            {
+                _sceneRoutingHost = new LongLiveSceneRoutingHost(GetLogger(), SceneRouting);
+            }
+
+            return _sceneRoutingHost;
+        }
+    }
+
+    public static ILongLiveMapOverviewFeature MapOverview => SceneRoutingHost.MapOverview;
+
+    public static ILongLiveCustomMapRuntimeFeature CustomMapRuntime => SceneRoutingHost.CustomMapRuntime;
+
+    public static LongLiveCompatibilityRuntime Compatibility
+    {
+        get
+        {
+            if (_compatibility is null)
+            {
+                _compatibility = new LongLiveCompatibilityRuntime(GetLogger());
+            }
+
+            return _compatibility;
+        }
+    }
+
+    public static LongLiveCompatibilitySnapshot GetCompatibilitySnapshot()
+    {
+        Compatibility.RefreshDynamicState();
+        return Compatibility.CaptureSnapshot();
+    }
+
+    public static void RegisterSceneRouteSource(ILongLiveSceneRouteRegistrationSource source)
+    {
+        SceneRoutingHost.RegisterSource(source);
+    }
+
+    public static void RegisterSceneRoutingFeature(ILongLiveSceneRoutingFeature feature)
+    {
+        SceneRoutingHost.RegisterFeature(feature);
+    }
+
+    public static void RegisterMapRegistryPlan(LongLiveMapRegistryPlan plan, string sourceName = "external")
+    {
+        SceneRoutingHost.RegisterPlan(plan, sourceName);
+    }
+
+    public static bool TryGetSceneRoutingFeature<TFeature>(out TFeature? feature)
+        where TFeature : class, ILongLiveSceneRoutingFeature
+    {
+        return SceneRoutingHost.Features.TryGet(out feature);
+    }
 
     public static NextRuntimeFacade GetRuntime()
     {

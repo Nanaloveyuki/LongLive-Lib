@@ -39,6 +39,7 @@ public sealed class LongLivePlugin : BaseUnityPlugin
     {
         Instance = this;
         LogSource = Logger;
+        LongLiveNextRuntimeProxyInstaller.Install();
 
         Logger.LogInfo($"{LongLivePluginMetadata.PluginName} plugin awake.");
         _harmony = new Harmony(LongLivePluginMetadata.PluginGuid);
@@ -164,6 +165,24 @@ public sealed class LongLivePlugin : BaseUnityPlugin
             3.0f,
             "Approximate per-frame time budget in milliseconds for LongLive bulk-item-use processing.");
 
+        var enableEasyBatchCompatibility = Config.Bind(
+            "LongLive.Compatibility",
+            "EnableEasyBatchCompatibility",
+            true,
+            "Enable LongLive compatibility handling for EasyBatch item-use interception.");
+
+        var enableWhiteZeCompatibility = Config.Bind(
+            "LongLive.Compatibility",
+            "EnableWhiteZeCompatibility",
+            true,
+            "Enable LongLive compatibility aliases for WhiteZe Tools routing and lightweight queries.");
+
+        var enableVToolsCompatibility = Config.Bind(
+            "LongLive.Compatibility",
+            "EnableVToolsCompatibility",
+            true,
+            "Enable LongLive compatibility aliases for VTools routing and lightweight queries.");
+
         var enableDemoCommandRegistration = Config.Bind(
             "LongLive",
             "EnableDemoCommandRegistration",
@@ -208,6 +227,9 @@ public sealed class LongLivePlugin : BaseUnityPlugin
             enableBulkItemUseOptimization,
             bulkItemUseChunkSize,
             bulkItemUseFrameBudgetMs,
+            enableEasyBatchCompatibility,
+            enableWhiteZeCompatibility,
+            enableVToolsCompatibility,
             enableDemoCommandRegistration,
             enableDemoQueryRegistration,
             enableJsonModDemoInstall,

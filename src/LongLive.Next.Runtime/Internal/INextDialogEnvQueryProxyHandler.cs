@@ -1,6 +1,6 @@
 namespace LongLive.Next.Runtime.Internal;
 
-internal interface INextDialogEnvQueryProxyHandler
+public interface INextDialogEnvQueryProxyHandler
 {
     object? Execute(object? nativeContext);
 }

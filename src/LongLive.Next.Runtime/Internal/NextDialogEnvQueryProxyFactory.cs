@@ -2,13 +2,20 @@ using System;
 
 namespace LongLive.Next.Runtime.Internal;
 
-internal static class NextDialogEnvQueryProxyFactory
+public static class NextDialogEnvQueryProxyFactory
 {
-    public static bool IsSupported => false;
+    public static Func<Type, INextDialogEnvQueryProxyHandler, object>? Factory { get; set; }
+
+    public static bool IsSupported => Factory is not null;
 
     public static object Create(Type dialogEnvQueryInterfaceType, INextDialogEnvQueryProxyHandler handler)
     {
-        throw new PlatformNotSupportedException(
-            "Next dialog-env-query proxy generation requires System.Reflection.Emit, which is unavailable on the current host runtime.");
+        if (Factory is null)
+        {
+            throw new PlatformNotSupportedException(
+                "LongLive.Next query registration currently requires a host-provided dialog-env-query proxy factory, but none has been configured.");
+        }
+
+        return Factory(dialogEnvQueryInterfaceType, handler);
     }
 }
