@@ -12,6 +12,8 @@ The current scope is intentionally limited to:
 - query file parsing
 - locale file discovery and basic validation
 - semantic validation
+- shared scene-routing contracts for future host/runtime services
+- shared map-overview and custom-map-runtime catalogs for future host scene systems
 
 It does not include runtime installation yet.
 
