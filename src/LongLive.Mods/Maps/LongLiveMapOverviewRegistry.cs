@@ -80,6 +80,9 @@ public sealed class LongLiveMapOverviewRegistry
                 SceneDisplayName = !string.IsNullOrWhiteSpace(scene.DisplayName) ? scene.DisplayName : node.DisplayName,
                 RouteKind = LongLiveSceneRoutingMapper.ToRouteKind(scene.MapKind),
                 PreferredEntryIndex = ResolvePreferredEntryIndex(node, scene),
+                AccessStaticValueId = node.AccessStaticValueId,
+                HideOnLock = node.HideOnLock,
+                AccessRuleSummary = node.AccessRuleSummary,
             });
         }
     }

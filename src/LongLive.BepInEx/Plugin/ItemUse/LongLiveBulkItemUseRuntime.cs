@@ -5,10 +5,13 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
+using System.Text;
 using Bag;
 using BepInEx.Logging;
 using GUIPackage;
 using HarmonyLib;
+using JSONClass;
 using KBEngine;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -29,11 +32,17 @@ internal static class LongLiveBulkItemUseRuntime
     private static float _pressedStartedTime;
     private static bool _longPressPopupOpen;
     private static bool _suppressNextPointerUpUse;
-    private static int _aggregatedExpGain;
-    private static string? _aggregatedExpSound;
     private static bool _suppressAggregation;
+    private static readonly List<AggregatedPopTip> AggregatedPopTips = new List<AggregatedPopTip>();
+    private static int _activeBulkItemId;
+    private static string? _activeBulkItemName;
+    private static int _activeBulkRequestedCount;
+    private static int _activeBulkCompletedCount;
+    private static BulkUseIterationContext? _currentIterationContext;
 
     public static bool IsEnabled => LongLivePlugin.Instance?.Options.EnableBulkItemUseOptimization.Value == true;
+
+    public static bool IsCapturingAggregationSession => IsAggregationSessionActive;
 
     public static int ChunkSize
     {
@@ -69,6 +78,7 @@ internal static class LongLiveBulkItemUseRuntime
         EnsureCoroutineHost();
         CancelActiveRequest();
         FlushAggregatedPopTips();
+        BeginAggregationSession(item, count);
 
         _activeRequest = new BulkUseRequest(item, slot, useAction, count);
         _activeCoroutine = _coroutineHost!.StartCoroutine(RunBulkUse(_activeRequest));
@@ -91,6 +101,7 @@ internal static class LongLiveBulkItemUseRuntime
         ResetPointerState();
         ResetAggregatedPopTips();
         CleanupPopTips();
+        LongLivePopTipRuntimeAccess.ClearAllTimingSnapshots();
     }
 
     public static bool TryHandlePointerDown(SlotBase slot, object? eventData)
@@ -131,7 +142,18 @@ internal static class LongLiveBulkItemUseRuntime
             return false;
         }
 
+        if (TryReadPointerDragging(eventData))
+        {
+            ResetPointerState();
+            return false;
+        }
+
         var button = TryReadPointerButton(eventData);
+        if (button == PointerEventData.InputButton.Middle)
+        {
+            return TryOpenSelector(slot, "middle-click");
+        }
+
         if (button != PointerEventData.InputButton.Right)
         {
             return false;
@@ -160,110 +182,86 @@ internal static class LongLiveBulkItemUseRuntime
             return;
         }
 
-        var item = _pressedSlot.Item;
-        var maxSelectableCount = GetMaxSelectableUseCount(item);
-        _suppressNextPointerUpUse = true;
-
-        if (maxSelectableCount <= 1)
+        if (TryOpenSelector(_pressedSlot, "long-press"))
         {
-            return;
+            _suppressNextPointerUpUse = true;
         }
-
-        _longPressPopupOpen = true;
-
-        var itemName = item.GetName();
-        USelectNum.Show(itemName + "x{num}", 1, maxSelectableCount, number =>
-        {
-            TryScheduleBulkUse(item, number, _pressedSlot);
-            _longPressPopupOpen = false;
-            ResetPointerState();
-        }, () =>
-        {
-            _longPressPopupOpen = false;
-            ResetPointerState();
-        });
-
-        Log($"bulk item-use opened LongLive long-press selector: count={maxSelectableCount}, itemId={item.Id}");
     }
 
     public static bool TryAggregatePopTip(string? msg, PopTipIconType iconType, string? sound)
     {
-        if (!IsEnabled || _suppressAggregation || string.IsNullOrWhiteSpace(msg))
+        if (!IsEnabled || _suppressAggregation || string.IsNullOrWhiteSpace(msg) || !IsAggregationSessionActive)
         {
             return false;
         }
 
-        if (iconType != PopTipIconType.上箭头)
-        {
-            return false;
-        }
-
-        const string prefix = "你的修为提升了";
-        if (!msg!.StartsWith(prefix, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        var suffix = msg.Substring(prefix.Length).Trim();
-        if (!int.TryParse(suffix, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
-        {
-            return false;
-        }
-
-        _aggregatedExpGain += value;
-        if (!string.IsNullOrWhiteSpace(sound))
-        {
-            _aggregatedExpSound = sound;
-        }
-
-        if (_activeRequest == null)
-        {
-            EnsureCoroutineHost();
-            _coroutineHost!.SchedulePopTipFlush();
-        }
-
+        RecordAggregatedPopTip(msg!, iconType, sound);
         return true;
     }
 
     private static IEnumerator RunBulkUse(BulkUseRequest request)
     {
-        while (!request.Cancelled && request.Remaining > 0)
+        try
         {
-            var frameBudget = TimeSpan.FromMilliseconds(FrameBudgetMs);
-            var frameStopwatch = Stopwatch.StartNew();
-            var processedThisFrame = 0;
-            var batchLimit = Math.Min(ChunkSize, request.Remaining);
-
-            while (processedThisFrame < batchLimit && request.Remaining > 0)
+            while (!request.Cancelled && request.Remaining > 0)
             {
-                if (request.Cancelled)
+                var frameBudget = TimeSpan.FromMilliseconds(FrameBudgetMs);
+                var frameStopwatch = Stopwatch.StartNew();
+                var processedThisFrame = 0;
+                var batchLimit = Math.Min(ChunkSize, request.Remaining);
+
+                while (processedThisFrame < batchLimit && request.Remaining > 0)
                 {
-                    yield break;
+                    if (request.Cancelled)
+                    {
+                        yield break;
+                    }
+
+                    var beforeSnapshot = CapturePlayerSnapshot();
+                    var iterationContext = BeginIterationContext();
+                    try
+                    {
+                        request.UseAction(request.Item);
+
+                        var afterSnapshot = CapturePlayerSnapshot();
+                        RecordPlayerSnapshotDelta(beforeSnapshot, afterSnapshot, iterationContext);
+                        request.Remaining--;
+                        _activeBulkCompletedCount++;
+                        processedThisFrame++;
+                    }
+                    catch (Exception exception)
+                    {
+                        request.Cancel();
+                        LogVerbose($"bulk item-use iteration failed: completed={_activeBulkCompletedCount}, remaining={request.Remaining}, reason={exception.GetType().Name}: {exception.Message}");
+                        break;
+                    }
+                    finally
+                    {
+                        EndIterationContext(iterationContext);
+                    }
+
+                    if (frameStopwatch.Elapsed >= frameBudget)
+                    {
+                        break;
+                    }
                 }
 
-                request.UseAction(request.Item);
-                request.Remaining--;
-                processedThisFrame++;
+                TryUpdateSlotUi(request.Slot);
 
-                if (frameStopwatch.Elapsed >= frameBudget)
+                if (request.Remaining > 0 && !request.Cancelled)
                 {
-                    break;
+                    yield return null;
                 }
-            }
-
-            TryUpdateSlotUi(request.Slot);
-
-            if (request.Remaining > 0)
-            {
-                yield return null;
             }
         }
-
-        TryUpdateSlotUi(request.Slot);
-        FlushAggregatedPopTips();
-        Log($"bulk item use completed: remaining={request.Remaining}");
-        _activeCoroutine = null;
-        _activeRequest = null;
+        finally
+        {
+            TryUpdateSlotUi(request.Slot);
+            FlushAggregatedPopTips();
+            Log($"bulk item use completed: remaining={request.Remaining}, completed={_activeBulkCompletedCount}, cancelled={request.Cancelled}");
+            _activeCoroutine = null;
+            _activeRequest = null;
+        }
     }
 
     private static void TryUpdateSlotUi(object? slot)
@@ -281,124 +279,991 @@ internal static class LongLiveBulkItemUseRuntime
     {
         try
         {
-            if (GetPopTipSingleton(out var popTipType, out var inst) == false)
+            if (!LongLivePopTipRuntimeAccess.TryGetSingleton(out var popTipType, out var inst))
             {
                 return;
             }
 
-            var waitForShow = AccessTools.Field(popTipType, "WaitForShow")?.GetValue(inst);
-            AccessTools.Method(waitForShow?.GetType(), "Clear", Type.EmptyTypes)?.Invoke(waitForShow, Array.Empty<object>());
+            LongLivePopTipRuntimeAccess.CaptureTimingSnapshotIfNeeded(popTipType, inst);
 
-            AccessTools.Field(popTipType, "minCD")?.SetValue(inst, 0f);
-            AccessTools.Field(popTipType, "tweenDestoryCD")?.SetValue(inst, 0f);
-            AccessTools.Field(popTipType, "addItemMergeCD")?.SetValue(inst, 0f);
+            var waitForShow = LongLivePopTipRuntimeAccess.GetWaitForShow(popTipType, inst);
+            LongLivePopTipRuntimeAccess.ClearWaitForShow(waitForShow);
+            LongLivePopTipRuntimeAccess.SetTimingFields(popTipType, inst, 0f, 0f, 0f);
+            LongLivePopTipRuntimeAccess.ClearAddItemMergeDictionary(popTipType, inst);
 
-            var addItemMergeDict = AccessTools.Field(popTipType, "addItemMergeMsgDict")?.GetValue(inst) as IDictionary;
-            addItemMergeDict?.Clear();
-
-            var tips = AccessTools.Field(popTipType, "Tips")?.GetValue(inst) as IList;
-
-            var existingTips = new List<object>();
-            if (tips != null)
-            {
-                foreach (var entry in tips)
-                {
-                    if (entry != null)
-                    {
-                        existingTips.Add(entry);
-                    }
-                }
-
-                tips.Clear();
-            }
-
-            foreach (var entry in existingTips)
-            {
-                if (entry is Component tipComponent)
-                {
-                    UnityEngine.Object.Destroy(tipComponent.gameObject);
-                }
-            }
+            var existingTips = LongLivePopTipRuntimeAccess.CollectAndClearTips(popTipType, inst);
+            LongLivePopTipRuntimeAccess.DestroyTipObjects(existingTips);
         }
         catch (Exception exception)
         {
             LogVerbose("bulk item-use pop-tip cleanup failed: " + exception.GetType().Name + ": " + exception.Message);
         }
+        finally
+        {
+            try
+            {
+                if (LongLivePopTipRuntimeAccess.TryGetSingleton(out var popTipType, out var inst))
+                {
+                    RestoreDefaultPopTipTiming(popTipType, inst);
+                }
+            }
+            catch (Exception exception)
+            {
+                LogVerbose("bulk item-use pop-tip timing restore failed: " + exception.GetType().Name + ": " + exception.Message);
+            }
+        }
     }
 
     private static void FlushAggregatedPopTips()
     {
-        if (_aggregatedExpGain <= 0)
+        if (AggregatedPopTips.Count == 0)
         {
+            TryPopGenericBulkUseSummary();
             return;
         }
 
         try
         {
-            if (GetPopTipSingleton(out var popTipType, out var inst) == false)
+            if (!LongLivePopTipRuntimeAccess.TryGetSingleton(out var popTipType, out var inst))
             {
                 return;
             }
 
             _suppressAggregation = true;
 
-            var popMethod = AccessTools.Method(popTipType, "Pop", new[] { typeof(string), typeof(string), typeof(PopTipIconType) });
-            if (popMethod != null)
+            foreach (var entry in AggregatedPopTips)
             {
-                popMethod.Invoke(inst, new object[]
+                var message = entry.BuildMessage();
+                if (string.IsNullOrWhiteSpace(message))
                 {
-                    "你的修为提升了" + _aggregatedExpGain.ToString(CultureInfo.InvariantCulture),
-                    _aggregatedExpSound ?? string.Empty,
-                    PopTipIconType.上箭头
-                });
-            }
-            else
-            {
+                    continue;
+                }
+
+                var popMethod = AccessTools.Method(popTipType, "Pop", new[] { typeof(string), typeof(string), typeof(PopTipIconType) });
+                if (popMethod != null)
+                {
+                    popMethod.Invoke(inst, new object[] { message, entry.Sound ?? string.Empty, entry.IconType });
+                    continue;
+                }
+
                 popMethod = AccessTools.Method(popTipType, "Pop", new[] { typeof(string), typeof(PopTipIconType) });
-                popMethod?.Invoke(inst, new object[]
-                {
-                    "你的修为提升了" + _aggregatedExpGain.ToString(CultureInfo.InvariantCulture),
-                    PopTipIconType.上箭头
-                });
+                popMethod?.Invoke(inst, new object[] { message, entry.IconType });
             }
         }
         catch (Exception exception)
         {
-            LogVerbose("bulk item-use exp pop-tip flush failed: " + exception.GetType().Name + ": " + exception.Message);
+            LogVerbose("bulk item-use aggregated pop-tip flush failed: " + exception.GetType().Name + ": " + exception.Message);
         }
         finally
         {
             _suppressAggregation = false;
-            _aggregatedExpGain = 0;
-            _aggregatedExpSound = null;
+            ResetAggregatedPopTips();
         }
     }
 
     private static void ResetAggregatedPopTips()
     {
-        _aggregatedExpGain = 0;
-        _aggregatedExpSound = null;
+        AggregatedPopTips.Clear();
         _suppressAggregation = false;
+        _activeBulkItemId = 0;
+        _activeBulkItemName = null;
+        _activeBulkRequestedCount = 0;
+        _activeBulkCompletedCount = 0;
     }
 
-    private static bool GetPopTipSingleton(out Type popTipType, out object inst)
+    private static bool IsAggregationSessionActive => _activeBulkItemId != 0;
+
+    private static void BeginAggregationSession(object item, int count)
     {
-        popTipType = AccessTools.TypeByName("UIPopTip")!;
-        inst = null!;
-        if (popTipType == null)
+        ResetAggregatedPopTips();
+
+        if (item is BaseItem baseItem)
+        {
+            _activeBulkItemId = baseItem.Id;
+            _activeBulkItemName = baseItem.GetName();
+            _activeBulkRequestedCount = count;
+            _activeBulkCompletedCount = 0;
+            return;
+        }
+
+        var idValue = AccessTools.Property(item.GetType(), "Id")?.GetValue(item, null);
+        if (idValue is int itemId)
+        {
+            _activeBulkItemId = itemId;
+        }
+
+        _activeBulkItemName = item.ToString();
+        _activeBulkRequestedCount = count;
+        _activeBulkCompletedCount = 0;
+    }
+
+    private static bool TryOpenSelector(SlotBase slot, string source)
+    {
+        if (slot == null || slot.Item == null || slot.IsNull() || !slot.CanUse)
         {
             return false;
         }
 
-        var candidate = AccessTools.Field(popTipType, "Inst")?.GetValue(null)
-            ?? AccessTools.Property(popTipType, "Inst")?.GetValue(null, null);
-        if (candidate == null)
+        var item = slot.Item;
+        var maxSelectableCount = GetMaxSelectableUseCount(item);
+        if (maxSelectableCount <= 1)
         {
             return false;
         }
 
-        inst = candidate;
+        _longPressPopupOpen = true;
+
+        var itemName = item.GetName();
+        USelectNum.Show(itemName + "x{num}", 1, maxSelectableCount, number =>
+        {
+            TryScheduleBulkUse(item, number, slot);
+            _longPressPopupOpen = false;
+            ResetPointerState();
+        }, () =>
+        {
+            _longPressPopupOpen = false;
+            ResetPointerState();
+        });
+
+        Log($"bulk item-use opened selector: source={source}, count={maxSelectableCount}, itemId={item.Id}");
         return true;
+    }
+
+    private static PlayerSnapshot? CapturePlayerSnapshot()
+    {
+        try
+        {
+            var player = Tools.instance?.getPlayer();
+            if (player == null)
+            {
+                return null;
+            }
+
+            return new PlayerSnapshot(
+                player.HP,
+                player.HP_Max,
+                player.shengShi,
+                (int)player.shouYuan,
+                player.xinjin,
+                CapturePlayerExperience(player),
+                (int)player.level,
+                player.ZiZhi,
+                (int)player.wuXin,
+                player.dunSu,
+                player.WuDaoDian,
+                player.Dandu,
+                CaptureNaiYaoCount(player.NaiYaoXin, _activeBulkItemId),
+                player.GetLingGeng?.ToArray() ?? player.LingGeng.ToArray(),
+                CaptureWuDaoExperience(player),
+                CaptureTemporaryDanYaoBuffs(player),
+                CaptureSkillIds(player.hasSkillList),
+                CaptureSkillIds(player.hasStaticSkillList),
+                CaptureUnlockedHerbIds(player.YaoCaiShuXin),
+                CaptureDanFangIds(player.DanFang),
+                CaptureYaoCaiChanDiIds(player.YaoCaiChanDi),
+                CaptureSeaTanSuoDu(player.SeaTanSuoDu),
+                CaptureItemBuffKeys(AccessTools.Field(player.GetType(), "ItemBuffList")?.GetValue(player)),
+                player.IsCanSetFace);
+        }
+        catch (Exception exception)
+        {
+            LogVerbose("bulk item-use snapshot capture failed: " + exception.GetType().Name + ": " + exception.Message);
+            return null;
+        }
+    }
+
+    private static void RecordPlayerSnapshotDelta(PlayerSnapshot? beforeSnapshot, PlayerSnapshot? afterSnapshot, BulkUseIterationContext? iterationContext)
+    {
+        if (beforeSnapshot == null || afterSnapshot == null)
+        {
+            return;
+        }
+
+        var hpMaxDelta = afterSnapshot.HpMax - beforeSnapshot.HpMax;
+        var hpDelta = afterSnapshot.Hp - beforeSnapshot.Hp;
+        RecordSignedDelta("你的血量上限提升了", "你的血量上限降低了", hpMaxDelta, PopTipIconType.上箭头);
+
+        var shouldSuppressHpDelta = hpMaxDelta > 0 && hpDelta == hpMaxDelta;
+        if (!shouldSuppressHpDelta)
+        {
+            RecordSignedDelta("你的血量恢复了", "你的血量降低了", hpDelta, PopTipIconType.上箭头);
+        }
+
+        RecordSignedDelta("你的神识提升了", "你的神识降低了", afterSnapshot.ShenShi - beforeSnapshot.ShenShi, PopTipIconType.上箭头);
+        RecordSignedDelta("你的寿元增加了", "你的寿元减少了", afterSnapshot.ShouYuan - beforeSnapshot.ShouYuan, PopTipIconType.上箭头);
+        RecordSignedDelta("你的心境提升了", "你的心境降低了", afterSnapshot.XinJing - beforeSnapshot.XinJing, PopTipIconType.上箭头);
+        RecordExperienceDelta(beforeSnapshot, afterSnapshot, iterationContext);
+        RecordSignedDelta("你的资质提升了", "你的资质降低了", afterSnapshot.ZiZhi - beforeSnapshot.ZiZhi, PopTipIconType.上箭头);
+        RecordSignedDelta("你的悟性提升了", "你的悟性降低了", afterSnapshot.WuXing - beforeSnapshot.WuXing, PopTipIconType.上箭头);
+        RecordSignedDelta("你的遁速提升了", "你的遁速降低了", afterSnapshot.DunSu - beforeSnapshot.DunSu, PopTipIconType.上箭头);
+        RecordSignedDelta("你的悟道点提升了", "你的悟道点降低了", afterSnapshot.WuDaoDian - beforeSnapshot.WuDaoDian, PopTipIconType.上箭头);
+        RecordSignedDelta("你的丹毒增加了", "你的丹毒降低了", afterSnapshot.DanDu - beforeSnapshot.DanDu, PopTipIconType.上箭头);
+        RecordSignedDelta("你的耐药次数增加了", "你的耐药次数减少了", afterSnapshot.NaiYaoCount - beforeSnapshot.NaiYaoCount, PopTipIconType.上箭头);
+        RecordWuDaoExperienceDelta(beforeSnapshot.WuDaoExperience, afterSnapshot.WuDaoExperience);
+        RecordTemporaryDanYaoBuffDelta(beforeSnapshot.TemporaryDanYaoBuffs, afterSnapshot.TemporaryDanYaoBuffs);
+        RecordUnlockDelta(beforeSnapshot, afterSnapshot, iterationContext);
+
+        var lingGengCount = Math.Min(beforeSnapshot.LingGeng.Length, afterSnapshot.LingGeng.Length);
+        for (var index = 0; index < lingGengCount; index++)
+        {
+            var delta = afterSnapshot.LingGeng[index] - beforeSnapshot.LingGeng[index];
+            RecordSignedDelta(
+                "你的" + ResolveLingGenName(index) + "灵根提升了",
+                "你的" + ResolveLingGenName(index) + "灵根降低了",
+                delta,
+                PopTipIconType.上箭头);
+        }
+    }
+
+    private static HashSet<int> CaptureSkillIds(List<SkillItem>? skills)
+    {
+        var result = new HashSet<int>();
+        if (skills == null)
+        {
+            return result;
+        }
+
+        foreach (var skill in skills)
+        {
+            if (skill?.itemId > 0)
+            {
+                result.Add(skill.itemId);
+            }
+        }
+
+        return result;
+    }
+
+    private static HashSet<int> CaptureUnlockedHerbIds(JSONObject? yaoCaiShuXin)
+    {
+        var result = new HashSet<int>();
+        if (yaoCaiShuXin?.keys == null)
+        {
+            return result;
+        }
+
+        foreach (var key in yaoCaiShuXin.keys)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                continue;
+            }
+
+            var separatorIndex = key.IndexOf('_');
+            var idText = separatorIndex > 0 ? key.Substring(0, separatorIndex) : key;
+            if (int.TryParse(idText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var herbId) && herbId > 0)
+            {
+                result.Add(herbId);
+            }
+        }
+
+        return result;
+    }
+
+    private static int CapturePlayerExperience(KBEngine.Avatar player)
+    {
+        try
+        {
+            var value = AccessTools.Field(player.GetType(), "exp")?.GetValue(player);
+            if (value is ulong unsignedValue)
+            {
+                return unsignedValue > int.MaxValue ? int.MaxValue : (int)unsignedValue;
+            }
+
+            if (value is long signedLongValue)
+            {
+                return signedLongValue > int.MaxValue ? int.MaxValue : (signedLongValue < int.MinValue ? int.MinValue : (int)signedLongValue);
+            }
+
+            if (value is int signedIntValue)
+            {
+                return signedIntValue;
+            }
+        }
+        catch (Exception exception)
+        {
+            LogVerbose("bulk item-use EXP snapshot failed: " + exception.GetType().Name + ": " + exception.Message);
+        }
+
+        return 0;
+    }
+
+    private static int CaptureNaiYaoCount(JSONObject? naiYaoXin, int itemId)
+    {
+        if (naiYaoXin == null || itemId <= 0)
+        {
+            return 0;
+        }
+
+        try
+        {
+            return Tools.getJsonobject(naiYaoXin, itemId.ToString(CultureInfo.InvariantCulture));
+        }
+        catch (Exception exception)
+        {
+            LogVerbose($"bulk item-use NaiYao snapshot failed: itemId={itemId}, reason={exception.GetType().Name}: {exception.Message}");
+            return 0;
+        }
+    }
+
+    private static Dictionary<int, int> CaptureTemporaryDanYaoBuffs(KBEngine.Avatar player)
+    {
+        var result = new Dictionary<int, int>();
+
+        try
+        {
+            foreach (var pair in player.StreamData?.DanYaoBuFFDict ?? new Dictionary<int, int>())
+            {
+                result[pair.Key] = pair.Value;
+            }
+        }
+        catch (Exception exception)
+        {
+            LogVerbose("bulk item-use DanYao temporary buff snapshot failed: " + exception.GetType().Name + ": " + exception.Message);
+        }
+
+        return result;
+    }
+
+    private static HashSet<int> CaptureDanFangIds(JSONObject? danFang)
+    {
+        var result = new HashSet<int>();
+        if (danFang?.list == null)
+        {
+            return result;
+        }
+
+        foreach (var entry in danFang.list)
+        {
+            var id = entry?["ID"]?.I ?? 0;
+            if (id > 0)
+            {
+                result.Add(id);
+            }
+        }
+
+        return result;
+    }
+
+    private static HashSet<int> CaptureYaoCaiChanDiIds(JSONObject? yaoCaiChanDi)
+    {
+        var result = new HashSet<int>();
+        if (yaoCaiChanDi?.list == null)
+        {
+            return result;
+        }
+
+        foreach (var entry in yaoCaiChanDi.list)
+        {
+            if (entry != null)
+            {
+                var id = entry.I;
+                if (id > 0)
+                {
+                    result.Add(id);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private static Dictionary<int, int> CaptureSeaTanSuoDu(JSONObject? seaTanSuoDu)
+    {
+        var result = new Dictionary<int, int>();
+        if (seaTanSuoDu?.keys == null)
+        {
+            return result;
+        }
+
+        foreach (var key in seaTanSuoDu.keys)
+        {
+            if (!int.TryParse(key, NumberStyles.Integer, CultureInfo.InvariantCulture, out var seaId) || seaId <= 0)
+            {
+                continue;
+            }
+
+            result[seaId] = seaTanSuoDu[key].I;
+        }
+
+        return result;
+    }
+
+    private static HashSet<string> CaptureItemBuffKeys(object? itemBuffList)
+    {
+        var result = new HashSet<string>(StringComparer.Ordinal);
+        if (itemBuffList == null)
+        {
+            return result;
+        }
+
+        try
+        {
+            var propertiesMethod = AccessTools.Method(itemBuffList.GetType(), "Properties", Type.EmptyTypes);
+            if (propertiesMethod?.Invoke(itemBuffList, Array.Empty<object>()) is not IEnumerable properties)
+            {
+                return result;
+            }
+
+            foreach (var property in properties)
+            {
+                var propertyType = property?.GetType();
+                if (propertyType == null)
+                {
+                    continue;
+                }
+
+                var name = AccessTools.Property(propertyType, "Name")?.GetValue(property, null) as string;
+                var value = AccessTools.Property(propertyType, "Value")?.GetValue(property, null);
+                if (string.IsNullOrWhiteSpace(name) || value == null)
+                {
+                    continue;
+                }
+
+                var getItemMethod = AccessTools.Method(value.GetType(), "get_Item", new[] { typeof(object) })
+                    ?? AccessTools.Method(value.GetType(), "get_Item", new[] { typeof(string) });
+                var startToken = getItemMethod?.Invoke(value, new object[] { "start" });
+                if (startToken == null)
+                {
+                    continue;
+                }
+
+                var startValue = AccessTools.Property(startToken.GetType(), "Value")?.GetValue(startToken, null);
+                if (startValue is bool enabled && enabled)
+                {
+                    result.Add(name!);
+                }
+            }
+        }
+        catch (Exception exception)
+        {
+            LogVerbose("bulk item-use item buff snapshot failed: " + exception.GetType().Name + ": " + exception.Message);
+        }
+
+        return result;
+    }
+
+    private static void RecordExperienceDelta(PlayerSnapshot beforeSnapshot, PlayerSnapshot afterSnapshot, BulkUseIterationContext? iterationContext)
+    {
+        var levelDelta = afterSnapshot.Level - beforeSnapshot.Level;
+        var experienceDelta = afterSnapshot.Experience - beforeSnapshot.Experience;
+        var suppressCultivation = iterationContext?.HasMarker(LongLiveBulkUsePromptMarker.CultivationGain) == true;
+
+        if (levelDelta == 0)
+        {
+            if (!suppressCultivation)
+            {
+                RecordSignedDelta("你的修为提升了", "你的修为降低了", experienceDelta, PopTipIconType.上箭头);
+            }
+
+            return;
+        }
+
+        if (levelDelta > 0)
+        {
+            RecordAggregatedPopTip("你的境界提升了" + levelDelta.ToString(CultureInfo.InvariantCulture) + "重", PopTipIconType.上箭头, null);
+        }
+        else
+        {
+            RecordAggregatedPopTip("你的境界降低了" + Math.Abs(levelDelta).ToString(CultureInfo.InvariantCulture) + "重", PopTipIconType.下箭头, null);
+        }
+
+        if (experienceDelta != 0 && !suppressCultivation)
+        {
+            RecordSignedDelta("你的修为提升了", "你的修为降低了", experienceDelta, PopTipIconType.上箭头);
+        }
+    }
+
+    private static void RecordTemporaryDanYaoBuffDelta(Dictionary<int, int> beforeSnapshot, Dictionary<int, int> afterSnapshot)
+    {
+        foreach (var pair in afterSnapshot)
+        {
+            var beforeValue = beforeSnapshot.TryGetValue(pair.Key, out var resolvedBefore) ? resolvedBefore : 0;
+            var delta = pair.Value - beforeValue;
+            if (delta == 0)
+            {
+                continue;
+            }
+
+            var itemName = ResolveItemName(pair.Key);
+            if (delta > 0)
+            {
+                RecordAggregatedPopTip("你获得了" + itemName + "药效" + delta.ToString(CultureInfo.InvariantCulture) + "层", PopTipIconType.包裹, null);
+            }
+            else
+            {
+                RecordAggregatedPopTip("你的" + itemName + "药效减少了" + Math.Abs(delta).ToString(CultureInfo.InvariantCulture) + "层", PopTipIconType.下箭头, null);
+            }
+        }
+    }
+
+    private static Dictionary<int, int> CaptureWuDaoExperience(KBEngine.Avatar player)
+    {
+        var result = new Dictionary<int, int>();
+        var wuDaoMag = player.wuDaoMag;
+        if (wuDaoMag == null || jsonData.instance?.WuDaoAllTypeJson?.list == null)
+        {
+            return result;
+        }
+
+        foreach (var typeEntry in jsonData.instance.WuDaoAllTypeJson.list)
+        {
+            var typeId = typeEntry?["id"]?.I ?? 0;
+            if (typeId <= 0)
+            {
+                continue;
+            }
+
+            try
+            {
+                result[typeId] = wuDaoMag.getWuDaoEx(typeId).I;
+            }
+            catch (Exception exception)
+            {
+                LogVerbose($"bulk item-use WuDao snapshot skipped: typeId={typeId}, reason={exception.GetType().Name}: {exception.Message}");
+            }
+        }
+
+        return result;
+    }
+
+    private static void RecordWuDaoExperienceDelta(Dictionary<int, int> beforeSnapshot, Dictionary<int, int> afterSnapshot)
+    {
+        if (afterSnapshot.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var pair in afterSnapshot)
+        {
+            var beforeValue = beforeSnapshot.TryGetValue(pair.Key, out var resolvedBefore) ? resolvedBefore : 0;
+            var delta = pair.Value - beforeValue;
+            if (delta == 0)
+            {
+                continue;
+            }
+
+            var wuDaoName = ResolveWuDaoTypeName(pair.Key);
+            RecordSignedDelta(
+                "你对" + wuDaoName + "之道的感悟提升了",
+                "你对" + wuDaoName + "之道的感悟降低了",
+                delta,
+                PopTipIconType.上箭头);
+        }
+    }
+
+    private static void RecordUnlockDelta(PlayerSnapshot beforeSnapshot, PlayerSnapshot afterSnapshot, BulkUseIterationContext? iterationContext)
+    {
+        if (iterationContext?.HasMarker(LongLiveBulkUsePromptMarker.SkillUnlock) != true)
+        {
+            RecordNamedUnlockDelta(
+                afterSnapshot.LearnedSkillIds.Except(beforeSnapshot.LearnedSkillIds),
+                ResolveSkillName,
+                "你学会了神通",
+                "你学会了{0}门神通");
+        }
+
+        if (iterationContext?.HasMarker(LongLiveBulkUsePromptMarker.StaticSkillUnlock) != true)
+        {
+            RecordNamedUnlockDelta(
+                afterSnapshot.LearnedStaticSkillIds.Except(beforeSnapshot.LearnedStaticSkillIds),
+                ResolveStaticSkillName,
+                "你学会了功法",
+                "你学会了{0}门功法");
+        }
+
+        if (iterationContext?.HasMarker(LongLiveBulkUsePromptMarker.HerbEncyclopediaUnlock) != true)
+        {
+            RecordNamedUnlockDelta(
+                afterSnapshot.UnlockedHerbIds.Except(beforeSnapshot.UnlockedHerbIds),
+                ResolveItemName,
+                "你解锁了草药图鉴：",
+                "你解锁了{0}种草药图鉴");
+        }
+
+        if (iterationContext?.HasMarker(LongLiveBulkUsePromptMarker.DanFangUnlock) != true)
+        {
+            RecordNamedUnlockDelta(
+                afterSnapshot.DanFangIds.Except(beforeSnapshot.DanFangIds),
+                ResolveItemName,
+                "你学会了丹方：",
+                "你学会了{0}份丹方");
+        }
+
+        if (iterationContext?.HasMarker(LongLiveBulkUsePromptMarker.HerbOriginUnlock) != true)
+        {
+            RecordNamedUnlockDelta(
+                afterSnapshot.YaoCaiChanDiIds.Except(beforeSnapshot.YaoCaiChanDiIds),
+                ResolveSeaLocationName,
+                "你掌握了草药产地：",
+                "你掌握了{0}处草药产地");
+        }
+
+        if (iterationContext?.HasMarker(LongLiveBulkUsePromptMarker.TemporaryItemBuffUnlock) != true)
+        {
+            RecordNamedStringUnlockDelta(
+                afterSnapshot.ItemBuffKeys.Except(beforeSnapshot.ItemBuffKeys),
+                ResolveItemBuffName,
+                "你获得了临时物品增益：",
+                "你获得了{0}个临时物品增益");
+        }
+
+        RecordSeaTanSuoDuDelta(beforeSnapshot.SeaTanSuoDu, afterSnapshot.SeaTanSuoDu, iterationContext);
+
+        if (!beforeSnapshot.CanSetFace && afterSnapshot.CanSetFace && iterationContext?.HasMarker(LongLiveBulkUsePromptMarker.FaceCustomizationUnlock) != true)
+        {
+            RecordAggregatedPopTip("你解锁了角色形象调整", PopTipIconType.包裹, null);
+        }
+    }
+
+    private static void RecordSeaTanSuoDuDelta(Dictionary<int, int> beforeSnapshot, Dictionary<int, int> afterSnapshot, BulkUseIterationContext? iterationContext)
+    {
+        if (iterationContext?.HasMarker(LongLiveBulkUsePromptMarker.SeaExplorationGain) == true)
+        {
+            return;
+        }
+
+        foreach (var pair in afterSnapshot)
+        {
+            var beforeValue = beforeSnapshot.TryGetValue(pair.Key, out var resolvedBefore) ? resolvedBefore : 0;
+            var delta = pair.Value - beforeValue;
+            if (delta == 0)
+            {
+                continue;
+            }
+
+            var seaName = ResolveSeaLocationName(pair.Key);
+            RecordSignedDelta(
+                "你对" + seaName + "的探索度提升了",
+                "你对" + seaName + "的探索度降低了",
+                delta,
+                PopTipIconType.上箭头);
+        }
+    }
+
+    private static void RecordNamedUnlockDelta(IEnumerable<int> newIds, Func<int, string> resolveName, string singlePrefix, string summaryFormat)
+    {
+        var uniqueIds = newIds
+            .Where(static id => id > 0)
+            .Distinct()
+            .ToArray();
+        if (uniqueIds.Length == 0)
+        {
+            return;
+        }
+
+        if (uniqueIds.Length > 3)
+        {
+            RecordAggregatedPopTip(string.Format(CultureInfo.InvariantCulture, summaryFormat, uniqueIds.Length), PopTipIconType.包裹, null);
+            return;
+        }
+
+        foreach (var id in uniqueIds)
+        {
+            var resolvedName = resolveName(id);
+            if (string.IsNullOrWhiteSpace(resolvedName))
+            {
+                resolvedName = id.ToString(CultureInfo.InvariantCulture);
+            }
+
+            RecordAggregatedPopTip(singlePrefix + resolvedName, PopTipIconType.包裹, null);
+        }
+    }
+
+    private static void RecordNamedStringUnlockDelta(IEnumerable<string> newKeys, Func<string, string> resolveName, string singlePrefix, string summaryFormat)
+    {
+        var uniqueKeys = newKeys
+            .Where(static key => !string.IsNullOrWhiteSpace(key))
+            .Select(static key => key.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (uniqueKeys.Length == 0)
+        {
+            return;
+        }
+
+        if (uniqueKeys.Length > 3)
+        {
+            RecordAggregatedPopTip(string.Format(CultureInfo.InvariantCulture, summaryFormat, uniqueKeys.Length), PopTipIconType.包裹, null);
+            return;
+        }
+
+        foreach (var key in uniqueKeys)
+        {
+            var resolvedName = resolveName(key);
+            if (string.IsNullOrWhiteSpace(resolvedName))
+            {
+                resolvedName = key;
+            }
+
+            RecordAggregatedPopTip(singlePrefix + resolvedName, PopTipIconType.包裹, null);
+        }
+    }
+
+    private static void RecordSignedDelta(string positivePrefix, string negativePrefix, int delta, PopTipIconType iconType)
+    {
+        if (delta == 0)
+        {
+            return;
+        }
+
+        if (delta > 0)
+        {
+            RecordAggregatedPopTip(positivePrefix + delta.ToString(CultureInfo.InvariantCulture), iconType, null);
+            return;
+        }
+
+        RecordAggregatedPopTip(negativePrefix + Math.Abs(delta).ToString(CultureInfo.InvariantCulture), iconType, null);
+    }
+
+    private static void RecordAggregatedPopTip(string message, PopTipIconType iconType, string? sound)
+    {
+        _currentIterationContext?.ObservePrompt(message);
+
+        if (LongLiveNumericMessageParser.TryParseNumericToken(message, out var prefix, out var numericValue, out var suffix))
+        {
+            var numericEntry = AggregatedPopTips.FirstOrDefault(entry =>
+                entry.IconType == iconType &&
+                string.Equals(entry.Sound, sound, StringComparison.Ordinal) &&
+                entry.HasNumericSuffix &&
+                string.Equals(entry.Prefix, prefix, StringComparison.Ordinal) &&
+                string.Equals(entry.Suffix, suffix, StringComparison.Ordinal));
+
+            if (numericEntry != null)
+            {
+                numericEntry.NumericValue += numericValue;
+                numericEntry.Count++;
+            }
+            else
+            {
+                AggregatedPopTips.Add(AggregatedPopTip.CreateNumeric(prefix, numericValue, suffix, iconType, sound));
+            }
+
+            return;
+        }
+
+        var exactEntry = AggregatedPopTips.FirstOrDefault(entry =>
+            entry.IconType == iconType &&
+            string.Equals(entry.Sound, sound, StringComparison.Ordinal) &&
+            !entry.HasNumericSuffix &&
+            string.Equals(entry.RawMessage, message, StringComparison.Ordinal));
+
+        if (exactEntry != null)
+        {
+            exactEntry.Count++;
+            return;
+        }
+
+        AggregatedPopTips.Add(AggregatedPopTip.CreateLiteral(message, iconType, sound));
+    }
+
+    private static void TryPopGenericBulkUseSummary()
+    {
+        var effectiveCount = ResolveEffectiveBulkSummaryCount();
+        if (effectiveCount <= 0 || string.IsNullOrWhiteSpace(_activeBulkItemName))
+        {
+            return;
+        }
+
+        try
+        {
+            if (!LongLivePopTipRuntimeAccess.TryGetSingleton(out var popTipType, out var inst))
+            {
+                return;
+            }
+
+            _suppressAggregation = true;
+            var message = string.Format(CultureInfo.InvariantCulture, "已批量使用{0}x{1}", _activeBulkItemName, effectiveCount);
+            var popMethod = AccessTools.Method(popTipType, "Pop", new[] { typeof(string), typeof(string), typeof(PopTipIconType) });
+            if (popMethod != null)
+            {
+                popMethod.Invoke(inst, new object[] { message, string.Empty, PopTipIconType.包裹 });
+                return;
+            }
+
+            popMethod = AccessTools.Method(popTipType, "Pop", new[] { typeof(string), typeof(PopTipIconType) });
+            popMethod?.Invoke(inst, new object[] { message, PopTipIconType.包裹 });
+        }
+        catch (Exception exception)
+        {
+            LogVerbose("bulk item-use generic pop-tip flush failed: " + exception.GetType().Name + ": " + exception.Message);
+        }
+        finally
+        {
+            _suppressAggregation = false;
+            ResetAggregatedPopTips();
+        }
+    }
+
+    private static string ResolveLingGenName(int index)
+    {
+        switch (index)
+        {
+            case 0:
+                return "金";
+            case 1:
+                return "木";
+            case 2:
+                return "水";
+            case 3:
+                return "火";
+            case 4:
+                return "土";
+            default:
+                return "未知";
+        }
+    }
+
+    private static string ResolveWuDaoTypeName(int typeId)
+    {
+        try
+        {
+            if (WuDaoAllTypeJson.DataDict.TryGetValue(typeId, out var wuDaoType) && !string.IsNullOrWhiteSpace(wuDaoType.name1))
+            {
+                return wuDaoType.name1;
+            }
+        }
+        catch (Exception exception)
+        {
+            LogVerbose($"bulk item-use WuDao name resolution failed: typeId={typeId}, reason={exception.GetType().Name}: {exception.Message}");
+        }
+
+        return typeId.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static string ResolveSkillName(int skillId)
+    {
+        try
+        {
+            var resolved = Tools.instance?.getSkillName(skillId, false);
+            if (!string.IsNullOrWhiteSpace(resolved))
+            {
+                return NormalizeDisplayText(resolved);
+            }
+
+            var fallback = jsonData.instance?.skillJsonData?[skillId.ToString(CultureInfo.InvariantCulture)]?["name"]?.Str;
+            if (!string.IsNullOrWhiteSpace(fallback))
+            {
+                return NormalizeDisplayText(fallback);
+            }
+        }
+        catch (Exception exception)
+        {
+            LogVerbose($"bulk item-use skill name resolution failed: skillId={skillId}, reason={exception.GetType().Name}: {exception.Message}");
+        }
+
+        return skillId.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static string ResolveStaticSkillName(int skillId)
+    {
+        try
+        {
+            var resolved = Tools.instance?.getStaticSkillName(skillId, false);
+            if (!string.IsNullOrWhiteSpace(resolved))
+            {
+                return NormalizeDisplayText(resolved);
+            }
+        }
+        catch (Exception exception)
+        {
+            LogVerbose($"bulk item-use static skill name resolution failed: skillId={skillId}, reason={exception.GetType().Name}: {exception.Message}");
+        }
+
+        return skillId.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static string ResolveItemName(int itemId)
+    {
+        try
+        {
+            if (_ItemJsonData.DataDict.TryGetValue(itemId, out var itemData) && !string.IsNullOrWhiteSpace(itemData.name))
+            {
+                return NormalizeDisplayText(itemData.name);
+            }
+        }
+        catch (Exception exception)
+        {
+            LogVerbose($"bulk item-use item name resolution failed: itemId={itemId}, reason={exception.GetType().Name}: {exception.Message}");
+        }
+
+        return itemId.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static string ResolveSeaLocationName(int seaId)
+    {
+        try
+        {
+            if (SeaHaiYuTanSuo.DataDict.ContainsKey(seaId))
+            {
+                var sceneName = "Sea" + seaId.ToString(CultureInfo.InvariantCulture);
+                if (SceneNameJsonData.DataDict.TryGetValue(sceneName, out var sceneData) && !string.IsNullOrWhiteSpace(sceneData.EventName))
+                {
+                    return NormalizeDisplayText(sceneData.EventName);
+                }
+
+            }
+        }
+        catch (Exception exception)
+        {
+            LogVerbose($"bulk item-use sea name resolution failed: seaId={seaId}, reason={exception.GetType().Name}: {exception.Message}");
+        }
+
+        return seaId.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static string ResolveItemBuffName(string buffKey)
+    {
+        if (string.IsNullOrWhiteSpace(buffKey))
+        {
+            return string.Empty;
+        }
+
+        var normalizedKey = buffKey.Trim();
+        return normalizedKey == "27"
+            ? "海上临时状态"
+            : string.Empty;
+    }
+
+    private static BulkUseIterationContext BeginIterationContext()
+    {
+        var context = new BulkUseIterationContext();
+        _currentIterationContext = context;
+        return context;
+    }
+
+    private static void EndIterationContext(BulkUseIterationContext context)
+    {
+        if (ReferenceEquals(_currentIterationContext, context))
+        {
+            _currentIterationContext = null;
+        }
+    }
+
+    private static string NormalizeDisplayText(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var normalized = Regex.Replace(value, "<[^>]+>", string.Empty);
+        return Regex.Unescape(normalized).Trim();
+    }
+
+    private static void RestoreDefaultPopTipTiming(Type popTipType, object inst)
+    {
+        LongLivePopTipRuntimeAccess.TryRestoreTimingSnapshot(popTipType, inst);
+    }
+
+    private static int ResolveEffectiveBulkSummaryCount()
+    {
+        if (_activeBulkCompletedCount > 0)
+        {
+            return _activeBulkCompletedCount;
+        }
+
+        return _activeBulkRequestedCount;
     }
 
     private static Action<object>? ResolveUseAction(Type itemType)
@@ -533,7 +1398,7 @@ internal static class LongLiveBulkItemUseRuntime
             return 0;
         }
 
-        var avatar = (Avatar)KBEngineApp.app.player();
+        var avatar = (KBEngine.Avatar)KBEngineApp.app.player();
         var currentDanDu = avatar.Dandu;
         var danDuPerUse = Math.Max((int)jsonData.instance.ItemJsonData[itemLogic.itemID.ToString()]["DanDu"].n - avatar.getStaticSkillAddSum(14), 0);
         if (danDuPerUse > 0)
@@ -613,5 +1478,156 @@ internal static class LongLiveBulkItemUseRuntime
             FlushAggregatedPopTips();
             _flushCoroutine = null;
         }
+    }
+
+    private sealed class AggregatedPopTip
+    {
+        private AggregatedPopTip(string rawMessage, string? prefix, int numericValue, string? suffix, bool hasNumericSuffix, PopTipIconType iconType, string? sound)
+        {
+            RawMessage = rawMessage;
+            Prefix = prefix;
+            NumericValue = numericValue;
+            Suffix = suffix;
+            HasNumericSuffix = hasNumericSuffix;
+            IconType = iconType;
+            Sound = sound;
+            Count = 1;
+        }
+
+        public string RawMessage { get; }
+
+        public string? Prefix { get; }
+
+        public int NumericValue { get; set; }
+
+        public string? Suffix { get; }
+
+        public bool HasNumericSuffix { get; }
+
+        public PopTipIconType IconType { get; }
+
+        public string? Sound { get; }
+
+        public int Count { get; set; }
+
+        public static AggregatedPopTip CreateNumeric(string prefix, int numericValue, string? suffix, PopTipIconType iconType, string? sound)
+        {
+            var normalizedSuffix = suffix ?? string.Empty;
+            return new AggregatedPopTip(prefix + numericValue.ToString(CultureInfo.InvariantCulture) + normalizedSuffix, prefix, numericValue, normalizedSuffix, true, iconType, sound);
+        }
+
+        public static AggregatedPopTip CreateLiteral(string rawMessage, PopTipIconType iconType, string? sound)
+        {
+            return new AggregatedPopTip(rawMessage, null, 0, null, false, iconType, sound);
+        }
+
+        public string BuildMessage()
+        {
+            if (HasNumericSuffix && Prefix != null)
+            {
+                return LongLiveNumericMessageParser.RebuildNumericMessage(Prefix, NumericValue, Suffix);
+            }
+
+            if (Count > 1)
+            {
+                return RawMessage + " x" + Count.ToString(CultureInfo.InvariantCulture);
+            }
+
+            return RawMessage;
+        }
+    }
+
+    private sealed class BulkUseIterationContext
+    {
+        private readonly HashSet<LongLiveBulkUsePromptMarker> _markers = new HashSet<LongLiveBulkUsePromptMarker>();
+
+        public void ObservePrompt(string? message)
+        {
+            LongLiveBulkItemUsePromptClassifier.Observe(message, _markers);
+        }
+
+        public bool HasMarker(LongLiveBulkUsePromptMarker marker)
+        {
+            return _markers.Contains(marker);
+        }
+    }
+
+    private sealed class PlayerSnapshot
+    {
+        public PlayerSnapshot(int hp, int hpMax, int shenShi, int shouYuan, int xinJing, int experience, int level, int ziZhi, int wuXing, int dunSu, int wuDaoDian, int danDu, int naiYaoCount, int[] lingGeng, Dictionary<int, int> wuDaoExperience, Dictionary<int, int> temporaryDanYaoBuffs, HashSet<int> learnedSkillIds, HashSet<int> learnedStaticSkillIds, HashSet<int> unlockedHerbIds, HashSet<int> danFangIds, HashSet<int> yaoCaiChanDiIds, Dictionary<int, int> seaTanSuoDu, HashSet<string> itemBuffKeys, bool canSetFace)
+        {
+            Hp = hp;
+            HpMax = hpMax;
+            ShenShi = shenShi;
+            ShouYuan = shouYuan;
+            XinJing = xinJing;
+            Experience = experience;
+            Level = level;
+            ZiZhi = ziZhi;
+            WuXing = wuXing;
+            DunSu = dunSu;
+            WuDaoDian = wuDaoDian;
+            DanDu = danDu;
+            NaiYaoCount = naiYaoCount;
+            LingGeng = lingGeng;
+            WuDaoExperience = wuDaoExperience;
+            TemporaryDanYaoBuffs = temporaryDanYaoBuffs;
+            LearnedSkillIds = learnedSkillIds;
+            LearnedStaticSkillIds = learnedStaticSkillIds;
+            UnlockedHerbIds = unlockedHerbIds;
+            DanFangIds = danFangIds;
+            YaoCaiChanDiIds = yaoCaiChanDiIds;
+            SeaTanSuoDu = seaTanSuoDu;
+            ItemBuffKeys = itemBuffKeys;
+            CanSetFace = canSetFace;
+        }
+
+        public int Hp { get; }
+
+        public int HpMax { get; }
+
+        public int ShenShi { get; }
+
+        public int ShouYuan { get; }
+
+        public int XinJing { get; }
+
+        public int Experience { get; }
+
+        public int Level { get; }
+
+        public int ZiZhi { get; }
+
+        public int WuXing { get; }
+
+        public int DunSu { get; }
+
+        public int WuDaoDian { get; }
+
+        public int DanDu { get; }
+
+        public int NaiYaoCount { get; }
+
+        public int[] LingGeng { get; }
+
+        public Dictionary<int, int> WuDaoExperience { get; }
+
+        public Dictionary<int, int> TemporaryDanYaoBuffs { get; }
+
+        public HashSet<int> LearnedSkillIds { get; }
+
+        public HashSet<int> LearnedStaticSkillIds { get; }
+
+        public HashSet<int> UnlockedHerbIds { get; }
+
+        public HashSet<int> DanFangIds { get; }
+
+        public HashSet<int> YaoCaiChanDiIds { get; }
+
+        public Dictionary<int, int> SeaTanSuoDu { get; }
+
+        public HashSet<string> ItemBuffKeys { get; }
+
+        public bool CanSetFace { get; }
     }
 }

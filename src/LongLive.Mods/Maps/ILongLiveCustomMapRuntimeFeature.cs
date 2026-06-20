@@ -7,4 +7,6 @@ public interface ILongLiveCustomMapRuntimeFeature : ILongLiveMapRegistryFeature
     ILongLiveCustomMapRuntimeCatalog Catalog { get; }
 
     ILongLiveCustomMapRuntimeBootstrapCatalog Bootstraps { get; }
+
+    ILongLiveSceneLocalTopologyCatalog SceneLocalTopologies { get; }
 }

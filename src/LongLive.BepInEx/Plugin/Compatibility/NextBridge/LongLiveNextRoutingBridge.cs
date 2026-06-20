@@ -213,6 +213,92 @@ internal static class LongLiveNextRoutingBridge
         }
     }
 
+    public static void CreateDongFu(int dongFuId, int level)
+    {
+        try
+        {
+            DongFuManager.CreateDongFu(dongFuId, level);
+        }
+        catch
+        {
+        }
+    }
+
+    public static void SetCurrentDongFuId(int dongFuId)
+    {
+        try
+        {
+            var appliedDongFuId = DongFuManager.PlayerHasDongFu(dongFuId) ? dongFuId : 1;
+            DongFuManager.NowDongFuID = appliedDongFuId;
+        }
+        catch
+        {
+        }
+    }
+
+    public static void SetDongFuName(int dongFuId, string? name)
+    {
+        try
+        {
+            DongFuManager.SetDongFuName(dongFuId, name ?? string.Empty);
+        }
+        catch
+        {
+        }
+    }
+
+    public static bool RemoveNpcFromMap(int npcId)
+    {
+        try
+        {
+            var normalizedNpcId = NPCEx.NPCIDToNew(npcId);
+            var removed = false;
+
+            foreach (var fuBenDict in NpcJieSuanManager.inst.npcMap.fuBenNPCDictionary.Values)
+            {
+                foreach (var positionList in fuBenDict.Values)
+                {
+                    if (!positionList.Contains(normalizedNpcId))
+                    {
+                        continue;
+                    }
+
+                    positionList.Remove(normalizedNpcId);
+                    removed = true;
+                }
+            }
+
+            foreach (var bigMapList in NpcJieSuanManager.inst.npcMap.bigMapNPCDictionary.Values)
+            {
+                if (!bigMapList.Contains(normalizedNpcId))
+                {
+                    continue;
+                }
+
+                bigMapList.Remove(normalizedNpcId);
+                removed = true;
+            }
+
+            foreach (var threeSceneList in NpcJieSuanManager.inst.npcMap.threeSenceNPCDictionary.Values)
+            {
+                if (!threeSceneList.Contains(normalizedNpcId))
+                {
+                    continue;
+                }
+
+                threeSceneList.Remove(normalizedNpcId);
+                removed = true;
+            }
+
+            NpcJieSuanManager.inst.isUpDateNpcList = true;
+            return removed;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public static int ResolvePlayerShengWang(int shengWangId)
     {
         try

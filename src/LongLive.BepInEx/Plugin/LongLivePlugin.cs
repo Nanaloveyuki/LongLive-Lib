@@ -1,7 +1,9 @@
+using System;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
+using System.Reflection;
 using LongLive.BepInEx.Native;
 using LongLive.Next.Runtime;
 
@@ -37,35 +39,54 @@ public sealed class LongLivePlugin : BaseUnityPlugin
 
     private void Awake()
     {
-        Instance = this;
-        LogSource = Logger;
-        LongLiveNextRuntimeProxyInstaller.Install();
-
-        Logger.LogInfo($"{LongLivePluginMetadata.PluginName} plugin awake.");
-        _harmony = new Harmony(LongLivePluginMetadata.PluginGuid);
-        _harmony.PatchAll(typeof(LongLivePlugin).Assembly);
-
-        if (Options.EnableBattleTrace.Value && Options.EnableDebugLogging.Value)
+        try
         {
-            Logger.LogInfo($"LongLive battle trace enabled. verbose={Options.EnableBattleTraceVerbose.Value}");
+            Instance = this;
+            LogSource = Logger;
+            LongLiveNextRuntimeProxyInstaller.Install();
+
+            Logger.LogInfo($"{LongLivePluginMetadata.PluginName} plugin awake.");
+            _harmony = new Harmony(LongLivePluginMetadata.PluginGuid);
+            _harmony.PatchAll(typeof(LongLivePlugin).Assembly);
+
+            if (Options.EnableBattleTrace.Value && Options.EnableDebugLogging.Value)
+            {
+                Logger.LogInfo($"LongLive battle trace enabled. verbose={Options.EnableBattleTraceVerbose.Value}");
+            }
+            else if (Options.EnableBattleTrace.Value)
+            {
+                Logger.LogInfo("LongLive battle trace requested, but debug logging is disabled. Battle trace remains inactive.");
+            }
+
+            if (Options.EnableExperimentalBattleGuard.Value)
+            {
+                Logger.LogInfo("LongLive experimental battle guard enabled. Non-player post-death Buff/Spell re-entry short-circuit is active.");
+            }
+
+            Logger.LogInfo(
+                "LongLive feature state: " +
+                $"bulkItemUse={Options.EnableBulkItemUseOptimization.Value}, " +
+                $"popTips={Options.EnablePopTipOptimization.Value}, " +
+                $"fade={Options.EnableFadeOptimization.Value}, " +
+                $"tuJianPinyin={Options.EnableTuJianPinyinSearch.Value}, " +
+                $"debug={Options.EnableDebugLogging.Value}");
+
+            Logger.LogInfo($"LongLive host module MVID: {Assembly.GetExecutingAssembly().ManifestModule.ModuleVersionId:D}");
+
+            _bootstrapper = new LongLiveBootstrapper(Logger, Runtime, Native, Options);
+            _bootstrapper.Initialize();
+
+            if (Options.EnableDebugLogging.Value)
+            {
+                var handshake = RefreshHandshake();
+                Logger.LogInfo($"LongLive handshake ready. version={handshake.PluginVersion}, protocol={handshake.HandshakeVersion}, next={handshake.NextRuntimeAvailable}, installRoot={handshake.InstallRoot}");
+            }
         }
-        else if (Options.EnableBattleTrace.Value)
+        catch (Exception ex)
         {
-            Logger.LogInfo("LongLive battle trace requested, but debug logging is disabled. Battle trace remains inactive.");
-        }
-
-        if (Options.EnableExperimentalBattleGuard.Value)
-        {
-            Logger.LogInfo("LongLive experimental battle guard enabled. Non-player post-death Buff/Spell re-entry short-circuit is active.");
-        }
-
-        _bootstrapper = new LongLiveBootstrapper(Logger, Runtime, Native, Options);
-        _bootstrapper.Initialize();
-
-        if (Options.EnableDebugLogging.Value)
-        {
-            var handshake = RefreshHandshake();
-            Logger.LogInfo($"LongLive handshake ready. version={handshake.PluginVersion}, protocol={handshake.HandshakeVersion}, next={handshake.NextRuntimeAvailable}, installRoot={handshake.InstallRoot}");
+            Logger.LogError($"LongLive plugin startup failed: {ex.GetType().Name}: {ex.Message}");
+            Logger.LogError(ex);
+            throw;
         }
     }
 
@@ -123,6 +144,18 @@ public sealed class LongLivePlugin : BaseUnityPlugin
             false,
             "Enable additional map trace detail such as sampled node inventories and repeated structure snapshots. Effective only when both EnableDebugLogging and EnableMapTrace are true.");
 
+        var enableSceneLocalTopologyLogging = Config.Bind(
+            "LongLive",
+            "EnableSceneLocalTopologyLogging",
+            false,
+            "Enable LongLive scene-local-topology binding logs for imported runtime node graphs such as JTools MapInfo. Effective only when EnableDebugLogging is also true.");
+
+        var enableSceneLocalTopologyVerbose = Config.Bind(
+            "LongLive",
+            "EnableSceneLocalTopologyVerbose",
+            false,
+            "Enable additional scene-local-topology detail such as sampled node names for the active imported topology. Effective only when both EnableDebugLogging and EnableSceneLocalTopologyLogging are true.");
+
         var enableAutoExportMapSnapshot = Config.Bind(
             "LongLive",
             "EnableAutoExportMapSnapshot",
@@ -164,6 +197,48 @@ public sealed class LongLivePlugin : BaseUnityPlugin
             "BulkItemUseFrameBudgetMs",
             3.0f,
             "Approximate per-frame time budget in milliseconds for LongLive bulk-item-use processing.");
+
+        var enablePopTipOptimization = Config.Bind(
+            "LongLive",
+            "EnablePopTipOptimization",
+            true,
+            "Enable generic LongLive pop-tip coalescing, queue cleanup, and faster fade behavior for high-volume prompt bursts.");
+
+        var popTipAggregationWindowMs = Config.Bind(
+            "LongLive",
+            "PopTipAggregationWindowMs",
+            500f,
+            "Aggregation window in milliseconds for merging repeated non-critical pop-tips into a single summarized entry.");
+
+        var popTipFastModeThreshold = Config.Bind(
+            "LongLive",
+            "PopTipFastModeThreshold",
+            6,
+            "When queued or active pop-tip count reaches this threshold, LongLive switches the pop-tip system into a faster cleanup mode.");
+
+        var enableTuJianPinyinSearch = Config.Bind(
+            "LongLive",
+            "EnableTuJianPinyinSearch",
+            true,
+            "Enable LongLive pinyin-aware search fallback for the TuJian search path.");
+
+        var enableFadeOptimization = Config.Bind(
+            "LongLive",
+            "EnableFadeOptimization",
+            true,
+            "Enable LongLive fade and transition acceleration for shared black-screen and scene-door animations.");
+
+        var fadeDurationScale = Config.Bind(
+            "LongLive",
+            "FadeDurationScale",
+            0.5f,
+            "Global scale multiplier for supported fade and transition durations. Lower values are faster.");
+
+        var mapDoorTransitionSeconds = Config.Bind(
+            "LongLive",
+            "MapDoorTransitionSeconds",
+            0.35f,
+            "Override duration in seconds for supported map-door black-screen transitions before scene loads.");
 
         var enableEasyBatchCompatibility = Config.Bind(
             "LongLive.Compatibility",
@@ -220,6 +295,8 @@ public sealed class LongLivePlugin : BaseUnityPlugin
             nativeLibraryPath,
             enableMapTrace,
             enableMapTraceVerbose,
+            enableSceneLocalTopologyLogging,
+            enableSceneLocalTopologyVerbose,
             enableAutoExportMapSnapshot,
             enableBattleTrace,
             enableBattleTraceVerbose,
@@ -227,6 +304,13 @@ public sealed class LongLivePlugin : BaseUnityPlugin
             enableBulkItemUseOptimization,
             bulkItemUseChunkSize,
             bulkItemUseFrameBudgetMs,
+            enablePopTipOptimization,
+            popTipAggregationWindowMs,
+            popTipFastModeThreshold,
+            enableTuJianPinyinSearch,
+            enableFadeOptimization,
+            fadeDurationScale,
+            mapDoorTransitionSeconds,
             enableEasyBatchCompatibility,
             enableWhiteZeCompatibility,
             enableVToolsCompatibility,

@@ -25,4 +25,10 @@ public sealed class LongLiveWorldNodeDescriptor
     public List<string> ConnectedNodeIds { get; set; } = new List<string>();
 
     public int? HostNodeIndex { get; set; }
+
+    public int? AccessStaticValueId { get; set; }
+
+    public bool? HideOnLock { get; set; }
+
+    public string AccessRuleSummary { get; set; } = string.Empty;
 }

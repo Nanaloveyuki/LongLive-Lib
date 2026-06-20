@@ -61,6 +61,7 @@ public sealed class LongLiveCompatibilityInstaller : ILongLiveInstaller
         yield return new LongLiveEasyBatchCompatibilityFeature(_logger, _runtime);
         yield return new LongLiveWhiteZeCompatibilityFeature(_nextRuntime, _runtime);
         yield return new LongLiveVToolsCompatibilityFeature(_nextRuntime, _runtime);
+        yield return new LongLiveVToolsTriggerCompatibilityFeature(_logger, _nextRuntime, _runtime);
     }
 
     private void RegisterStaticLibraryDescriptors()

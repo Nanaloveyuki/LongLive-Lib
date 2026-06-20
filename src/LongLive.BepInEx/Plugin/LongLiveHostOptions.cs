@@ -11,6 +11,8 @@ public sealed class LongLiveHostOptions
         ConfigEntry<string> nativeLibraryPath,
         ConfigEntry<bool> enableMapTrace,
         ConfigEntry<bool> enableMapTraceVerbose,
+        ConfigEntry<bool> enableSceneLocalTopologyLogging,
+        ConfigEntry<bool> enableSceneLocalTopologyVerbose,
         ConfigEntry<bool> enableAutoExportMapSnapshot,
         ConfigEntry<bool> enableBattleTrace,
         ConfigEntry<bool> enableBattleTraceVerbose,
@@ -18,6 +20,13 @@ public sealed class LongLiveHostOptions
         ConfigEntry<bool> enableBulkItemUseOptimization,
         ConfigEntry<int> bulkItemUseChunkSize,
         ConfigEntry<float> bulkItemUseFrameBudgetMs,
+        ConfigEntry<bool> enablePopTipOptimization,
+        ConfigEntry<float> popTipAggregationWindowMs,
+        ConfigEntry<int> popTipFastModeThreshold,
+        ConfigEntry<bool> enableTuJianPinyinSearch,
+        ConfigEntry<bool> enableFadeOptimization,
+        ConfigEntry<float> fadeDurationScale,
+        ConfigEntry<float> mapDoorTransitionSeconds,
         ConfigEntry<bool> enableEasyBatchCompatibility,
         ConfigEntry<bool> enableWhiteZeCompatibility,
         ConfigEntry<bool> enableVToolsCompatibility,
@@ -33,6 +42,8 @@ public sealed class LongLiveHostOptions
         NativeLibraryPath = nativeLibraryPath;
         EnableMapTrace = enableMapTrace;
         EnableMapTraceVerbose = enableMapTraceVerbose;
+        EnableSceneLocalTopologyLogging = enableSceneLocalTopologyLogging;
+        EnableSceneLocalTopologyVerbose = enableSceneLocalTopologyVerbose;
         EnableAutoExportMapSnapshot = enableAutoExportMapSnapshot;
         EnableBattleTrace = enableBattleTrace;
         EnableBattleTraceVerbose = enableBattleTraceVerbose;
@@ -40,6 +51,13 @@ public sealed class LongLiveHostOptions
         EnableBulkItemUseOptimization = enableBulkItemUseOptimization;
         BulkItemUseChunkSize = bulkItemUseChunkSize;
         BulkItemUseFrameBudgetMs = bulkItemUseFrameBudgetMs;
+        EnablePopTipOptimization = enablePopTipOptimization;
+        PopTipAggregationWindowMs = popTipAggregationWindowMs;
+        PopTipFastModeThreshold = popTipFastModeThreshold;
+        EnableTuJianPinyinSearch = enableTuJianPinyinSearch;
+        EnableFadeOptimization = enableFadeOptimization;
+        FadeDurationScale = fadeDurationScale;
+        MapDoorTransitionSeconds = mapDoorTransitionSeconds;
         EnableEasyBatchCompatibility = enableEasyBatchCompatibility;
         EnableWhiteZeCompatibility = enableWhiteZeCompatibility;
         EnableVToolsCompatibility = enableVToolsCompatibility;
@@ -62,6 +80,10 @@ public sealed class LongLiveHostOptions
 
     public ConfigEntry<bool> EnableMapTraceVerbose { get; }
 
+    public ConfigEntry<bool> EnableSceneLocalTopologyLogging { get; }
+
+    public ConfigEntry<bool> EnableSceneLocalTopologyVerbose { get; }
+
     public ConfigEntry<bool> EnableAutoExportMapSnapshot { get; }
 
     public ConfigEntry<bool> EnableBattleTrace { get; }
@@ -75,6 +97,20 @@ public sealed class LongLiveHostOptions
     public ConfigEntry<int> BulkItemUseChunkSize { get; }
 
     public ConfigEntry<float> BulkItemUseFrameBudgetMs { get; }
+
+    public ConfigEntry<bool> EnablePopTipOptimization { get; }
+
+    public ConfigEntry<float> PopTipAggregationWindowMs { get; }
+
+    public ConfigEntry<int> PopTipFastModeThreshold { get; }
+
+    public ConfigEntry<bool> EnableTuJianPinyinSearch { get; }
+
+    public ConfigEntry<bool> EnableFadeOptimization { get; }
+
+    public ConfigEntry<float> FadeDurationScale { get; }
+
+    public ConfigEntry<float> MapDoorTransitionSeconds { get; }
 
     public ConfigEntry<bool> EnableEasyBatchCompatibility { get; }
 

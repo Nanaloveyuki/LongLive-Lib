@@ -19,7 +19,6 @@ public sealed class LongLiveMainMenuEntryInstaller : ILongLiveInstaller
     private readonly ManualLogSource _logger;
     private readonly NextRuntimeFacade _runtime;
     private readonly LongLiveHostOptions _options;
-    private LongLiveMainMenuPanel? _panel;
 
     public LongLiveMainMenuEntryInstaller(ManualLogSource logger, NextRuntimeFacade runtime, LongLiveHostOptions options)
     {
@@ -33,6 +32,7 @@ public sealed class LongLiveMainMenuEntryInstaller : ILongLiveInstaller
     public void Install()
     {
         _instance = this;
+        LongLiveUiController.Initialize(_logger, _runtime, _options);
         _logger.LogInfo("LongLive main-menu entry installer armed with Harmony main-menu patch.");
         TryInstallEntryImmediately();
     }
@@ -194,7 +194,15 @@ public sealed class LongLiveMainMenuEntryInstaller : ILongLiveInstaller
         }
 
         button.mouseUpEvent = new UnityEvent();
-        button.mouseUpEvent.AddListener(ShowDiagnostics);
+        button.mouseUpEvent.AddListener(() =>
+        {
+            if (_options.EnableDebugLogging.Value)
+            {
+                _logger.LogInfo("LongLive main-menu entry click received.");
+            }
+
+            LongLiveUiController.TryTogglePanel("main-menu-entry");
+        });
     }
 
     private static Vector3 ResolveEntryLocalPosition(Transform parent, Vector3 sourceLocalPosition)
@@ -236,11 +244,12 @@ public sealed class LongLiveMainMenuEntryInstaller : ILongLiveInstaller
 
     private void ShowDiagnostics()
     {
-        var localizer = new LongLiveTextLocalizer(_runtime);
-        if (TryShowPanel(localizer))
+        if (LongLiveUiController.TryTogglePanel("legacy-showdiagnostics"))
         {
             return;
         }
+
+        var localizer = new LongLiveTextLocalizer(_runtime);
 
         if (!TryShowEntryMenu(localizer))
         {
@@ -250,14 +259,7 @@ public sealed class LongLiveMainMenuEntryInstaller : ILongLiveInstaller
 
     private bool TryShowPanel(LongLiveTextLocalizer localizer)
     {
-        var mainUi = MainUIMag.inst;
-        if (mainUi?.新主界面 is null)
-        {
-            return false;
-        }
-
-        _panel ??= new LongLiveMainMenuPanel(_logger, _runtime, _options, localizer);
-        return _panel.TryShow(mainUi.新主界面.transform);
+        return LongLiveUiController.TryTogglePanel("main-menu-panel");
     }
 
     private bool TryShowEntryMenu(LongLiveTextLocalizer localizer)

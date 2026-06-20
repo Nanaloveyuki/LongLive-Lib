@@ -8,10 +8,13 @@ public sealed class LongLiveCustomMapRuntimeRegistry
 {
     private readonly LongLiveCustomMapRuntimeCatalog _catalog = new LongLiveCustomMapRuntimeCatalog();
     private readonly LongLiveCustomMapRuntimeBootstrapCatalog _bootstraps = new LongLiveCustomMapRuntimeBootstrapCatalog();
+    private readonly LongLiveSceneLocalTopologyCatalog _sceneLocalTopologies = new LongLiveSceneLocalTopologyCatalog();
 
     public LongLiveCustomMapRuntimeCatalog Catalog => _catalog;
 
     public ILongLiveCustomMapRuntimeBootstrapCatalog Bootstraps => _bootstraps;
+
+    public ILongLiveSceneLocalTopologyCatalog SceneLocalTopologies => _sceneLocalTopologies;
 
     public void RegisterPlan(LongLiveMapRegistryPlan plan)
     {
@@ -31,6 +34,29 @@ public sealed class LongLiveCustomMapRuntimeRegistry
         }
 
         RegisterBootstraps(plan.Draft);
+    }
+
+    public void RegisterSceneLocalTopologyBatch(LongLiveSceneLocalTopologyBatch batch)
+    {
+        if (batch is null)
+        {
+            throw new ArgumentNullException(nameof(batch));
+        }
+
+        foreach (var topology in batch.Topologies)
+        {
+            _sceneLocalTopologies.RegisterTopology(topology);
+        }
+
+        foreach (var node in batch.Nodes)
+        {
+            if (!_sceneLocalTopologies.TryGetTopology(node.TopologyLogicalId, out _))
+            {
+                throw new InvalidOperationException($"Scene-local topology node references missing topology {node.TopologyLogicalId}.");
+            }
+
+            _sceneLocalTopologies.RegisterNode(node);
+        }
     }
 
     private void RegisterBootstraps(LongLiveMapRegistryDraft draft)

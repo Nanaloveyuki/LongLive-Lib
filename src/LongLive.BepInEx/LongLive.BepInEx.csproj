@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Localization\*.json" />
+    <EmbeddedResource Include="Plugin\Search\Resources\**\*.txt" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(LongLiveEnableLocalHostReferences)' == 'true'">
@@ -34,6 +35,10 @@
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>$(McsGameRoot)\觅长生_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.AnimationModule">
+      <HintPath>$(McsGameRoot)\觅长生_Data\Managed\UnityEngine.AnimationModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine">

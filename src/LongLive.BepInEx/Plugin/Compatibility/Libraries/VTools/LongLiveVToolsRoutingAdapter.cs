@@ -43,6 +43,10 @@ public sealed class LongLiveVToolsRoutingAdapter
         LongLiveNextCompatibilityRegistration.RegisterCommandAlias(_compatibilityRuntime, _runtime.CommandRegistry, RedirectId, "SearchOneNpc", HandleSearchOneNpc, LongLiveCompatibilityOptionGate.IsVToolsEnabled);
         LongLiveNextCompatibilityRegistration.RegisterCommandAlias(_compatibilityRuntime, _runtime.CommandRegistry, RedirectId, "AddShengWang", HandleAddShengWang, LongLiveCompatibilityOptionGate.IsVToolsEnabled);
         LongLiveNextCompatibilityRegistration.RegisterCommandAlias(_compatibilityRuntime, _runtime.CommandRegistry, RedirectId, "CreateOneNpc", HandleCreateOneNpc, LongLiveCompatibilityOptionGate.IsVToolsEnabled);
+        LongLiveNextCompatibilityRegistration.RegisterCommandAlias(_compatibilityRuntime, _runtime.CommandRegistry, RedirectId, "CreateDongFu", HandleCreateDongFu, LongLiveCompatibilityOptionGate.IsVToolsEnabled);
+        LongLiveNextCompatibilityRegistration.RegisterCommandAlias(_compatibilityRuntime, _runtime.CommandRegistry, RedirectId, "SetNowDongFuID", HandleSetNowDongFuId, LongLiveCompatibilityOptionGate.IsVToolsEnabled);
+        LongLiveNextCompatibilityRegistration.RegisterCommandAlias(_compatibilityRuntime, _runtime.CommandRegistry, RedirectId, "SetDongFuName", HandleSetDongFuName, LongLiveCompatibilityOptionGate.IsVToolsEnabled);
+        LongLiveNextCompatibilityRegistration.RegisterCommandAlias(_compatibilityRuntime, _runtime.CommandRegistry, RedirectId, "NpcMapRemoveNpc", HandleNpcMapRemoveNpc, LongLiveCompatibilityOptionGate.IsVToolsEnabled);
         LongLiveNextCompatibilityRegistration.RegisterQueryAlias(_compatibilityRuntime, _runtime.QueryRegistry, RedirectId, "GetCurAllMapIndex", HandleGetCurAllMapIndex, LongLiveCompatibilityOptionGate.IsVToolsEnabled, static () => 0);
         LongLiveNextCompatibilityRegistration.RegisterQueryAlias(_compatibilityRuntime, _runtime.QueryRegistry, RedirectId, "GetCurFubenIndex", HandleGetCurFubenIndex, LongLiveCompatibilityOptionGate.IsVToolsEnabled, static () => 0);
         LongLiveNextCompatibilityRegistration.RegisterQueryAlias(_compatibilityRuntime, _runtime.QueryRegistry, RedirectId, "GetPlaceName", HandleGetPlaceName, LongLiveCompatibilityOptionGate.IsVToolsEnabled, static () => string.Empty);
@@ -126,6 +130,37 @@ public sealed class LongLiveVToolsRoutingAdapter
         var roleBindId = roleId > 0 ? NPCEx.NPCIDToOld(roleId) : 0;
 
         LongLiveNextEnvironmentBridge.WriteRoleContext(context.NativeEnvironment, roleId, roleName, roleBindId);
+        complete();
+    }
+
+    private static void HandleCreateDongFu(NextCommandContext context, Action complete)
+    {
+        var dongFuId = context.GetInt(0, 0);
+        var level = context.GetInt(1, 0);
+        LongLiveNextRoutingBridge.CreateDongFu(dongFuId, level);
+        complete();
+    }
+
+    private static void HandleSetNowDongFuId(NextCommandContext context, Action complete)
+    {
+        var dongFuId = context.GetInt(0, 0);
+        LongLiveNextRoutingBridge.SetCurrentDongFuId(dongFuId);
+        complete();
+    }
+
+    private static void HandleSetDongFuName(NextCommandContext context, Action complete)
+    {
+        var dongFuId = context.GetInt(0, 0);
+        var name = context.GetString(1, string.Empty);
+        LongLiveNextRoutingBridge.SetDongFuName(dongFuId, name);
+        complete();
+    }
+
+    private static void HandleNpcMapRemoveNpc(NextCommandContext context, Action complete)
+    {
+        var npcId = context.GetInt(0, 0);
+        var removed = LongLiveNextRoutingBridge.RemoveNpcFromMap(npcId);
+        LongLiveNextEnvironmentBridge.WriteBoolResult(context.NativeEnvironment, "NpcMapRemoveNpc", removed);
         complete();
     }
 

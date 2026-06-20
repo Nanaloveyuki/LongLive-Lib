@@ -14,6 +14,8 @@ public sealed class LongLiveCustomMapRuntimeFeatureShell : ILongLiveCustomMapRun
 
     public ILongLiveCustomMapRuntimeBootstrapCatalog Bootstraps => _registry.Bootstraps;
 
+    public ILongLiveSceneLocalTopologyCatalog SceneLocalTopologies => _registry.SceneLocalTopologies;
+
     public void RegisterPlan(LongLiveMapRegistryPlan plan)
     {
         _registry.RegisterPlan(plan);
@@ -25,5 +27,10 @@ public sealed class LongLiveCustomMapRuntimeFeatureShell : ILongLiveCustomMapRun
         {
             throw new ArgumentNullException(nameof(sceneRouting));
         }
+    }
+
+    public void RegisterSceneLocalTopologyBatch(LongLiveSceneLocalTopologyBatch batch)
+    {
+        _registry.RegisterSceneLocalTopologyBatch(batch);
     }
 }

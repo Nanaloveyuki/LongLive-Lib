@@ -14,6 +14,7 @@ Current scope:
 - read-only catalog query helpers for future host adapters and bridge layers
 - map-overview routing projections from world nodes to typed scene-routing addresses
 - custom-map-runtime bootstrap descriptors for entry/return route planning
+- scene-local topology catalogs for runtime node graphs that do not belong on the world overview map
 
 This layer is intentionally pure C# and host-agnostic.
 

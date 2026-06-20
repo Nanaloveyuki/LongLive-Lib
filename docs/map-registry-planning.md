@@ -71,6 +71,13 @@ The planning layer currently includes:
 - `LongLiveMapRegistryPlan`
 - `LongLiveMapRegistrationReport`
 
+At the host integration layer, external C# modules can now hand a draft directly to:
+
+- `LongLivePluginContext.CreateMapRegistryPlan(...)`
+- `LongLivePluginContext.RegisterMapRegistryDraft(...)`
+
+That means external map-capable mods do not need to re-assemble the standard planning and registration flow manually.
+
 The intent is that downstream mods should eventually register logical IDs such as:
 
 - `my_mod.scene.pengsha-island`
@@ -84,6 +91,12 @@ Then `LongLive` assigns host-side numeric IDs such as:
 - `HostHighlightId`
 - `HostNodeIndex`
 - `HostOutsideScenePos`
+
+The current recommended external flow is:
+
+1. produce a `LongLiveMapRegistryDraft`
+2. call `RegisterMapRegistryDraft(...)` if direct host registration is desired
+3. keep `CreateMapRegistryPlan(...)` for cases where a mod wants to inspect validation or allocations before registration
 
 ## 4. Current Validation Scope
 
@@ -160,5 +173,13 @@ Likely areas to refine next:
 - highlight-region geometry or binding details
 - stronger node-to-scene routing metadata
 - scene return-path semantics beyond simple `OutsideSceneName`
+- scene-local topology metadata for custom runtime node graphs that should remain separate from world-overview routing nodes
+
+The current host path is now strong enough to support future compatibility adapters that convert third-party map metadata into a `LongLiveMapRegistryDraft` and then register that draft through one standard entry point instead of mutating multiple registries directly.
+
+Current examples now include:
+
+- LingJie-style overview metadata import
+- JTools-style scene metadata import
 
 Only after that comparison is reasonably stable should `LongLive` begin implementing real custom map installation into the host runtime.

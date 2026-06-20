@@ -44,6 +44,7 @@ The current working split is:
 - [`docs/next-runtime-usage.md`](./docs/next-runtime-usage.md): current usage patterns for the bootstrap runtime facade
 - [`docs/next-runtime-examples.md`](./docs/next-runtime-examples.md): short examples for the facade, extensions, and state-key helpers
 - [`docs/bepinex-host-bootstrap.md`](./docs/bepinex-host-bootstrap.md): current `LongLive.BepInEx` host bootstrap strategy
+- [`docs/deploy-guide.md`](./docs/deploy-guide.md): short daily deployment guide and script layout
 - [`docs/distribution-and-bridge-strategy.md`](./docs/distribution-and-bridge-strategy.md): planned Host, Bridge, and content-package distribution model
 - [`docs/bridge-host-state-contract.md`](./docs/bridge-host-state-contract.md): published Next-state contract for Bridge-side host detection
 - [`docs/mod-schema-draft.md`](./docs/mod-schema-draft.md): first draft of the declarative JSON-mod schema
@@ -58,5 +59,15 @@ The current working split is:
 1. Keep documenting which `LongLive.Next` APIs are intended to be stable and which runtime details are bootstrap-only
 2. Continue separating what should wrap Next directly from what would require lower-level BepInEx or Harmony work
 3. Add minimal runtime composition helpers before introducing a real plugin host project
+
+## Daily Deployment
+
+Use the unified script entry for normal local work:
+
+```powershell
+./scripts/longlive.ps1 -Action host-redeploy
+```
+
+See [`docs/deploy-guide.md`](./docs/deploy-guide.md) for the categorized script layout and the small set of commands you actually need day to day.
 
 Until then, Unity projects, AssetBundle workflows, and deep patching should remain out of scope.

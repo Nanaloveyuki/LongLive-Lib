@@ -24,6 +24,12 @@ public sealed class LongLiveMapOverviewRouteProjection
 
     public int? PreferredEntryIndex { get; set; }
 
+    public int? AccessStaticValueId { get; set; }
+
+    public bool? HideOnLock { get; set; }
+
+    public string AccessRuleSummary { get; set; } = string.Empty;
+
     public LongLiveSceneAddress CreateSceneAddress(bool preserveLastScene = true)
     {
         return new LongLiveSceneAddress

@@ -32,6 +32,8 @@ internal static class LongLiveHostHandshakeFactory
             LongLiveHostCapability.HostBootstrap,
             LongLiveHostCapability.MainMenuEntry,
             LongLiveHostCapability.MapRegistryPlanning,
+            LongLiveHostCapability.SceneRouting,
+            LongLiveHostCapability.CompatibilityRedirect,
         };
 
         if (plugin.Runtime.IsAvailable)

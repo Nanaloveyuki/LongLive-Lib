@@ -81,6 +81,47 @@ public static class LongLivePluginContext
         SceneRoutingHost.RegisterPlan(plan, sourceName);
     }
 
+    public static void RegisterSceneLocalTopologyBatch(LongLiveSceneLocalTopologyBatch batch)
+    {
+        if (batch is null)
+        {
+            throw new ArgumentNullException(nameof(batch));
+        }
+
+        if (CustomMapRuntime is LongLiveCustomMapRuntimeFeatureShell shell)
+        {
+            shell.RegisterSceneLocalTopologyBatch(batch);
+            return;
+        }
+
+        throw new InvalidOperationException("The current custom map runtime feature does not support scene-local topology registration.");
+    }
+
+    public static LongLiveMapRegistryPlan CreateMapRegistryPlan(LongLiveMapRegistryDraft draft, LongLiveMapHostAllocationRanges? ranges = null)
+    {
+        if (draft is null)
+        {
+            throw new ArgumentNullException(nameof(draft));
+        }
+
+        return new LongLiveMapRegistryPlanner().CreatePlan(draft, ranges);
+    }
+
+    public static LongLiveMapRegistryPlan RegisterMapRegistryDraft(
+        LongLiveMapRegistryDraft draft,
+        string sourceName = "external",
+        LongLiveMapHostAllocationRanges? ranges = null)
+    {
+        if (draft is null)
+        {
+            throw new ArgumentNullException(nameof(draft));
+        }
+
+        var plan = CreateMapRegistryPlan(draft, ranges);
+        RegisterMapRegistryPlan(plan, sourceName);
+        return plan;
+    }
+
     public static bool TryGetSceneRoutingFeature<TFeature>(out TFeature? feature)
         where TFeature : class, ILongLiveSceneRoutingFeature
     {
@@ -152,5 +193,10 @@ public static class LongLivePluginContext
     public static IReadOnlyCollection<string> GetCapabilities()
     {
         return GetHostHandshake().Capabilities;
+    }
+
+    public static LongLiveSceneLocalTopologyRuntimeSnapshot GetSceneLocalTopologyRuntimeSnapshot(int sampleLimit = 8)
+    {
+        return LongLiveSceneLocalTopologyRuntime.CaptureSnapshot(sampleLimit);
     }
 }

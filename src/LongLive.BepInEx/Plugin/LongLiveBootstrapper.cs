@@ -29,6 +29,8 @@ public sealed class LongLiveBootstrapper
         {
             new LongLiveCompatibilityInstaller(_logger, LongLivePluginContext.Compatibility, _runtime),
             new LongLiveSceneRoutingInstaller(_logger),
+            new LongLiveThirdPartyMapAdapterInstaller(_logger),
+            new LongLiveSceneLocalTopologyInstaller(_logger, _options),
             new LongLiveMapTraceInstaller(_logger, _options),
             new LongLiveMapSnapshotInstaller(_logger, _options),
             new LongLiveBattleTraceInstaller(_logger, _options),
@@ -78,6 +80,9 @@ public sealed class LongLiveBootstrapper
 
         _logger.LogInfo("LongLive host bootstrap shutting down.");
         LongLiveBulkItemUseRuntime.OnPluginShutdown();
+        LongLivePopTipOptimizationRuntime.OnPluginShutdown();
+        LongLiveFadeOptimizationRuntime.OnPluginShutdown();
+        LongLivePinyinSearchService.OnPluginShutdown();
         _initialized = false;
         _runtimeInstallCompleted = false;
     }
@@ -96,8 +101,13 @@ public sealed class LongLiveBootstrapper
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         LongLiveBulkItemUseRuntime.OnSceneLoaded(scene);
+        LongLivePopTipOptimizationRuntime.OnSceneLoaded(scene);
+        LongLiveFadeOptimizationRuntime.OnSceneLoaded(scene, mode);
         LongLiveMapTraceRuntime.OnUnitySceneLoaded(scene, mode);
         LongLiveMapSnapshotRuntime.OnSceneLoaded(scene);
+        LongLiveSceneLocalTopologyRuntime.OnSceneLoaded(scene, mode);
+        LongLiveUiController.OnSceneLoaded(scene);
+        LongLiveThirdPartyMapAdapterInstaller.RetryPending(_logger);
 
         if (_options.EnableDebugLogging.Value)
         {

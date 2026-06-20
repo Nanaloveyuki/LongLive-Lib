@@ -29,6 +29,10 @@ internal sealed class LongLiveMainMenuPanel : IESCClose
     private FpBtn? _compatibilityButton;
     private FpBtn? _diagnosticsButton;
 
+    public bool IsVisible => _root is not null && _root.activeSelf;
+
+    public bool IsUsable => _root != null;
+
     public LongLiveMainMenuPanel(ManualLogSource logger, NextRuntimeFacade runtime, LongLiveHostOptions options, LongLiveTextLocalizer localizer)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -64,7 +68,7 @@ internal sealed class LongLiveMainMenuPanel : IESCClose
 
     public void Hide()
     {
-        if (_root is null)
+        if (_root == null)
         {
             return;
         }
@@ -75,35 +79,55 @@ internal sealed class LongLiveMainMenuPanel : IESCClose
 
     private void EnsurePanel(Transform uiRoot)
     {
-        if (_root is not null)
+        if (_root == null)
         {
-            if (_root.transform.parent != uiRoot)
-            {
-                _root.transform.SetParent(uiRoot, false);
-            }
+            _root = new GameObject("LongLivePanel", typeof(RectTransform), typeof(Image));
+            _root.transform.SetParent(uiRoot, false);
+            _root.transform.SetAsLastSibling();
 
+            var rootRect = _root.GetComponent<RectTransform>();
+            rootRect.anchorMin = new Vector2(0.5f, 0.5f);
+            rootRect.anchorMax = new Vector2(0.5f, 0.5f);
+            rootRect.pivot = new Vector2(0.5f, 0.5f);
+            rootRect.sizeDelta = new Vector2(1240f, 760f);
+            rootRect.anchoredPosition = Vector2.zero;
+
+            var rootImage = _root.GetComponent<Image>();
+            rootImage.color = new Color(0.12f, 0.14f, 0.17f, 0.96f);
+
+            CreateHeader(rootRect);
+            CreateNavigation(rootRect);
+            CreateContent(rootRect);
+            CreateFooter(rootRect);
+
+            _root.SetActive(false);
             return;
         }
 
-        _root = new GameObject("LongLivePanel", typeof(RectTransform), typeof(Image));
-        _root.transform.SetParent(uiRoot, false);
+        if (!_root)
+        {
+            ResetDestroyedState();
+            EnsurePanel(uiRoot);
+            return;
+        }
 
-        var rootRect = _root.GetComponent<RectTransform>();
-        rootRect.anchorMin = new Vector2(0.5f, 0.5f);
-        rootRect.anchorMax = new Vector2(0.5f, 0.5f);
-        rootRect.pivot = new Vector2(0.5f, 0.5f);
-        rootRect.sizeDelta = new Vector2(1240f, 760f);
-        rootRect.anchoredPosition = Vector2.zero;
+        if (_root.transform.parent != uiRoot)
+        {
+            _root.transform.SetParent(uiRoot, false);
+        }
 
-        var rootImage = _root.GetComponent<Image>();
-        rootImage.color = new Color(0.12f, 0.14f, 0.17f, 0.96f);
+        _root.transform.SetAsLastSibling();
+    }
 
-        CreateHeader(rootRect);
-        CreateNavigation(rootRect);
-        CreateContent(rootRect);
-        CreateFooter(rootRect);
-
-        _root.SetActive(false);
+    private void ResetDestroyedState()
+    {
+        _root = null;
+        _titleText = null;
+        _bodyText = null;
+        _contentRect = null;
+        _overviewButton = null;
+        _compatibilityButton = null;
+        _diagnosticsButton = null;
     }
 
     private void CreateHeader(RectTransform parent)

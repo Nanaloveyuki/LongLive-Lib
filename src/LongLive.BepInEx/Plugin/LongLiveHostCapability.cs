@@ -21,4 +21,8 @@ public static class LongLiveHostCapability
     public const string MapSnapshotExport = "map-snapshot-export";
 
     public const string MapRegistryPlanning = "map-registry-planning";
+
+    public const string SceneRouting = "scene-routing";
+
+    public const string CompatibilityRedirect = "compatibility-redirect";
 }

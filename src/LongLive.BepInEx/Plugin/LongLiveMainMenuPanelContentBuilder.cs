@@ -61,6 +61,7 @@ internal static class LongLiveMainMenuPanelContentBuilder
         var snapshotService = new LongLiveMapSnapshotExportService();
         var snapshotExport = snapshotService.ExportCurrentSnapshot();
         var snapshot = snapshotService.CaptureCurrentSnapshot();
+        var topologySnapshot = LongLivePluginContext.GetSceneLocalTopologyRuntimeSnapshot();
         var compatibility = LongLivePluginContext.GetCompatibilitySnapshot();
         var compatibilityStatus = compatibility.Activations.Count > 0
             ? string.Join(", ", compatibility.Activations.Select(static activation => activation.RedirectId + "=" + activation.StatusCode + "(" + activation.InvocationCount + ")"))
@@ -120,6 +121,11 @@ internal static class LongLiveMainMenuPanelContentBuilder
                 FormatField(localizer.Get("diagnostics.map_snapshot_pages"), FormatNumber(snapshot.Pages.Count)),
                 FormatField(localizer.Get("diagnostics.map_snapshot_highlights"), FormatNumber(snapshot.HighlightRegions.Count)),
                 FormatField(localizer.Get("diagnostics.map_snapshot_nodes"), FormatNumber(snapshot.Nodes.Count)),
+                FormatField(localizer.Get("diagnostics.scene_local_topology_count"), FormatNumber(topologySnapshot.TotalTopologyCount)),
+                FormatField(localizer.Get("diagnostics.scene_local_node_count"), FormatNumber(topologySnapshot.TotalNodeCount)),
+                FormatField(localizer.Get("diagnostics.scene_local_scene_registered"), FormatBoolean(topologySnapshot.HasSceneRegistration)),
+                FormatField(localizer.Get("diagnostics.scene_local_active_topology"), topologySnapshot.HasActiveTopology ? FormatCode(topologySnapshot.TopologyLogicalId) : FormatMuted(localizer.Get("common.not_reported_yet"))),
+                FormatField(localizer.Get("diagnostics.scene_local_active_nodes"), topologySnapshot.ActiveNodeNames.Count > 0 ? FormatWrappedCsv(string.Join(", ", topologySnapshot.ActiveNodeNames.ToArray())) : FormatMuted(localizer.Get("common.not_reported_yet"))),
                 FormatField(localizer.Get("diagnostics.map_snapshot_export_success"), FormatBoolean(snapshotExport.Success)),
                 FormatField(localizer.Get("diagnostics.map_snapshot_export_path"), snapshotExport.Success ? FormatPath(snapshotExport.Path) : FormatCode(localizer.Get("common.na"))),
                 FormatField(localizer.Get("diagnostics.map_snapshot_export_summary"), FormatStatusOrWrappedText(snapshotExport.Summary)),

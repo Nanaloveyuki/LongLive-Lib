@@ -128,5 +128,9 @@ public sealed class LongLiveCompatibilityRuntime
         var enabled = LongLiveCompatibilityOptionGate.IsVToolsEnabled();
         record.RedirectEnabled = enabled;
         record.RedirectApplied = enabled && LongLiveVToolsRoutingAdapter.IsRegistered;
+
+        var triggerRecord = _registry.GetActivationOrCreate(LongLiveVToolsTriggerBridge.RedirectId);
+        triggerRecord.RedirectEnabled = enabled;
+        triggerRecord.RedirectApplied = enabled && LongLiveVToolsTriggerBridge.IsInstalled;
     }
 }
