@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "longlive.demo",
+  "name": "LongLive Demo",
+  "version": "0.1.0",
+  "authors": [
+    "nanaloveyuki"
+  ],
+  "description": "Demo JSON mod package for LongLive.",
+  "dependencies": [
+    {
+      "id": "io.github.nanaloveyuki.longlive-lib",
+      "version": ">=0.1.0"
+    }
+  ],
+  "entrypoints": {
+    "commands": "commands.json",
+    "queries": "queries.json",
+    "stateKeys": "state-keys.json",
+    "content": {
+      "items": "items.json",
+      "skills": "skills.json",
+      "buffs": "buffs.json",
+      "assets": "assets.json"
+    }
+  },
+  "locales": [
+    "locales/en-US.json",
+    "locales/zh-CN.json"
+  ]
+}

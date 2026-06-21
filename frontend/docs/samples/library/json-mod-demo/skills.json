@@ -1,0 +1,23 @@
+{
+  "skills": [
+    {
+      "id": 910001,
+      "skillPkId": 910001,
+      "name": "Demo Sword Light",
+      "description": "A simple demo attack skill.",
+      "guideDescription": "Demo skill guide text.",
+      "icon": 201,
+      "quality": 1,
+      "phase": 1,
+      "baseDamage": 12,
+      "attackScript": "SkillAttack",
+      "battle": true,
+      "learnLevel": 1,
+      "learnCostMonth": 1,
+      "seid": [2001],
+      "affix": [],
+      "costTypes": [1],
+      "costValues": [2]
+    }
+  ]
+}

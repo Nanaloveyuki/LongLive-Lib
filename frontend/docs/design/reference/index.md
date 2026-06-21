@@ -1,0 +1,25 @@
+# 设计文档索引
+
+这里收录的是当前架构草稿、注册表规划、兼容层方向，以及运行时设计相关文档。
+
+- [bepinex-host-bootstrap](./bepinex-host-bootstrap.md)
+- [bootstrap-notes](./bootstrap-notes.md)
+- [bridge-host-state-contract](./bridge-host-state-contract.md)
+- [compatibility-roadmap](./compatibility-roadmap.md)
+- [content-schema-draft](./content-schema-draft.md)
+- [distribution-and-bridge-strategy](./distribution-and-bridge-strategy.md)
+- [host-bridge-and-world-map-design](./host-bridge-and-world-map-design.md)
+- [jtools-scene-metadata-adapter](./jtools-scene-metadata-adapter.md)
+- [lingjie-map-draft-adapter](./lingjie-map-draft-adapter.md)
+- [longlive-unified-host-capabilities](./longlive-unified-host-capabilities.md)
+- [map-compatibility-redirection-matrix](./map-compatibility-redirection-matrix.md)
+- [map-draft-registration-flow](./map-draft-registration-flow.md)
+- [map-registry-planning](./map-registry-planning.md)
+- [mod-schema-draft](./mod-schema-draft.md)
+- [native-battle-adjudication](./native-battle-adjudication.md)
+- [native-core-feasibility](./native-core-feasibility.md)
+- [next-content-backend-design](./next-content-backend-design.md)
+- [next-runtime-design](./next-runtime-design.md)
+- [reference-mod-map-integration-study](./reference-mod-map-integration-study.md)
+- [reference-mod-utility-ecosystem-study](./reference-mod-utility-ecosystem-study.md)
+- [scene-routing-design](./scene-routing-design.md)

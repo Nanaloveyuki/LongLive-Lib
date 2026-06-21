@@ -1,0 +1,12 @@
+[
+  {
+    "id": "LongLive.Bridge.EnterGame",
+    "character": {
+      "旁白": 0
+    },
+    "dialog": [
+      "RunLua*longlive_bridge#enter_game"
+    ],
+    "option": []
+  }
+]

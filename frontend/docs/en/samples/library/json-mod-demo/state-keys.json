@@ -1,0 +1,16 @@
+{
+  "keys": [
+    {
+      "id": "longlive.demo.counter",
+      "type": "int",
+      "default": 0,
+      "description": "Demo counter."
+    },
+    {
+      "id": "longlive.demo.locale",
+      "type": "string",
+      "default": "en-US",
+      "description": "Preferred locale."
+    }
+  ]
+}

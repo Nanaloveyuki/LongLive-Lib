@@ -1,0 +1,13 @@
+{
+  "queries": [
+    {
+      "id": "LongLiveDebugEnabled",
+      "handler": "longlive.state.int",
+      "backend": "builtin",
+      "options": {
+        "key": "longlive.debug_enabled",
+        "default": 0
+      }
+    }
+  ]
+}

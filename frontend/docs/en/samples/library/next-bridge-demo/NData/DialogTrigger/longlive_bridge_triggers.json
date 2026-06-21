@@ -1,0 +1,11 @@
+[
+  {
+    "id": "LongLive.Bridge.EnterGame.Trigger",
+    "type": "EnterGame",
+    "condition": "true",
+    "triggerEvent": "LongLive.Bridge.EnterGame",
+    "default": true,
+    "once": false,
+    "priority": -100
+  }
+]

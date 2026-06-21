@@ -1,0 +1,21 @@
+{
+  "commands": [
+    {
+      "id": "LongLiveEcho",
+      "handler": "longlive.echo",
+      "backend": "builtin",
+      "args": [
+        {
+          "name": "message",
+          "type": "string",
+          "index": 0,
+          "default": ""
+        }
+      ],
+      "options": {
+        "writeStateKey": "longlive.last_error",
+        "logInvocation": true
+      }
+    }
+  ]
+}
