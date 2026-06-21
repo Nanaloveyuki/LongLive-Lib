@@ -288,6 +288,18 @@ internal static class LongLiveFadeOptimizationRuntime
             return false;
         }
 
+        // The async NextScene bridge is fast, but battle-return quest settlement is sensitive
+        // to the original loadMapScenes order. Keep the original return path for stability.
+        if (string.Equals(sceneName, "AllMaps", StringComparison.Ordinal))
+        {
+            var currentScene = SceneManager.GetActiveScene().name;
+            if (IsImmediateFightScene(currentScene))
+            {
+                LogVerbose($"kept original fight-return map load path for stability: current={currentScene}, target={sceneName}");
+                return false;
+            }
+        }
+
         var activeSceneName = SceneManager.GetActiveScene().name;
         if (string.Equals(activeSceneName, "NextScene", StringComparison.Ordinal))
         {

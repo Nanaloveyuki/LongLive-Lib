@@ -7,6 +7,7 @@ using System.Reflection;
 using BepInEx.Logging;
 using HarmonyLib;
 using LongLive.BepInEx.Plugin;
+using JSONClass;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -576,6 +577,230 @@ internal static class LongLiveBattleTraceRuntime
         var normalizedSkillId = NormalizePositiveKey(TryResolveSpellSkillId(spell, flag, source));
         IncrementRawCounter(GuardBlockedSpellTickCountsBySkillType, BuildSkillTypeKey(normalizedSkillId, normalizedType));
         return true;
+    }
+
+    public static void EnsureQuestKillProgressForCurrentBattleTarget(string source, KBEngine.Avatar? deadAvatar = null)
+    {
+        if (!IsExperimentalGuardEnabled)
+        {
+            return;
+        }
+
+        try
+        {
+            var plugin = LongLivePlugin.Instance;
+            if (plugin == null || Tools.instance == null || PlayerEx.Player == null)
+            {
+                return;
+            }
+
+            if (deadAvatar != null && deadAvatar.isPlayer())
+            {
+                return;
+            }
+
+            var battleTargetId = Tools.instance.MonstarID;
+            var expectedTargetId = GlobalValue.Get(401, "Avatar.die");
+            var taskId = GlobalValue.Get(402, "NomelTaskMag.AutoNTaskSetKillAvatar 委托任务ID临时变量");
+            var currentChildIndex = PlayerEx.Player.nomelTaskMag.nowChildNTask(taskId);
+            var currentStepType = -1;
+            var currentChildValue = -1;
+
+            if (taskId > 0 && currentChildIndex >= 0)
+            {
+                var currentStep = PlayerEx.Player.nomelTaskMag.GetXiangXi(taskId, currentChildIndex);
+                currentStepType = currentStep["type"].I;
+                var currentChildId = PlayerEx.Player.NomelTaskJson[taskId.ToString()]["TaskChild"][currentChildIndex].I;
+                currentChildValue = jsonData.instance.NTaskSuiJI[currentChildId.ToString()]["Value"].I;
+            }
+
+            if (plugin.Options.EnableDebugLogging.Value)
+            {
+                Log($"battle-guard quest sync probe: source={source}, battleTargetId={battleTargetId}, questTargetId={expectedTargetId}, global402={taskId}, currentChildIndex={currentChildIndex}, currentStepType={currentStepType}, currentChildValue={currentChildValue}, deadAvatar={(deadAvatar == null ? "null" : DescribeAvatarState(deadAvatar))}");
+            }
+
+            if (battleTargetId <= 0 || taskId <= 0 || currentChildIndex < 0 || currentStepType != 2 || currentChildValue <= 0)
+            {
+                return;
+            }
+
+            if (currentChildValue != battleTargetId && currentChildValue != expectedTargetId)
+            {
+                if (plugin.Options.EnableDebugLogging.Value)
+                {
+                    Log($"battle-guard quest sync skipped: source={source}, taskId={taskId}, battleTargetId={battleTargetId}, questTargetId={expectedTargetId}, currentChildValue={currentChildValue}, reason=child-target-mismatch");
+                }
+
+                return;
+            }
+
+            if (HasQuestKillProgress(taskId, currentChildValue))
+            {
+                if (plugin.Options.EnableDebugLogging.Value)
+                {
+                    Log($"battle-guard quest sync skipped: source={source}, taskId={taskId}, currentChildValue={currentChildValue}, battleTargetId={battleTargetId}, reason=already-recorded");
+                }
+
+                return;
+            }
+
+            PlayerEx.Player.nomelTaskMag.AutoNTaskSetKillAvatar(currentChildValue);
+
+            if (!HasQuestKillProgress(taskId, currentChildValue))
+            {
+                ForceQuestKillProgress(taskId, currentChildValue);
+            }
+
+            if (plugin.Options.EnableDebugLogging.Value)
+            {
+                var hasProgressAfterSync = HasQuestKillProgress(taskId, currentChildValue);
+                currentChildIndex = PlayerEx.Player.nomelTaskMag.nowChildNTask(taskId);
+                var canFinishTask = PlayerEx.Player.nomelTaskMag.IsNTaskCanFinish(taskId);
+                var taskDetail = PlayerEx.Player.nomelTaskMag.GetNTaskXiangXiData(taskId);
+                var deliveryType = taskDetail?.JiaoFuType ?? -1;
+                Log($"battle-guard synced quest kill progress for current battle target: source={source}, taskId={taskId}, currentChildValue={currentChildValue}, battleTargetId={battleTargetId}, questTargetId={expectedTargetId}, hasProgressAfterSync={hasProgressAfterSync}, nowChildIndex={currentChildIndex}, canFinishTask={canFinishTask}, deliveryType={deliveryType}");
+                LogQuestTaskState(taskId, "battle-guard quest task-state after sync");
+            }
+
+            if (plugin.Options.EnableDebugLogging.Value && PlayerEx.Player.nomelTaskMag.IsNTaskCanFinish(taskId))
+            {
+                var taskDetail = PlayerEx.Player.nomelTaskMag.GetNTaskXiangXiData(taskId);
+                var deliveryType = taskDetail?.JiaoFuType ?? -1;
+                Log($"battle-guard quest sync completed, deferring final completion to vanilla flow: source={source}, taskId={taskId}, deliveryType={deliveryType}");
+            }
+        }
+        catch (Exception exception)
+        {
+            if (LongLivePlugin.Instance?.Options.EnableDebugLogging.Value == true)
+            {
+                Log($"battle-guard quest kill-progress sync failed: source={source}, reason={exception.GetType().Name}: {exception.Message}");
+            }
+        }
+    }
+
+    public static void ForceQuestKillProgress(int taskId, int avatarId)
+    {
+        if (taskId <= 0 || avatarId <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var player = PlayerEx.Player;
+            var taskFlagRoot = player?.NomelTaskFlag;
+            if (taskFlagRoot == null)
+            {
+                return;
+            }
+
+            var taskKey = taskId.ToString();
+            if (!taskFlagRoot.HasField(taskKey))
+            {
+                taskFlagRoot[taskKey] = new JSONObject(JSONObject.Type.OBJECT);
+            }
+
+            if (!taskFlagRoot[taskKey].HasField("killAvatar"))
+            {
+                taskFlagRoot[taskKey]["killAvatar"] = new JSONObject(JSONObject.Type.ARRAY);
+            }
+
+            if (!taskFlagRoot[taskKey]["killAvatar"].HasItem(avatarId))
+            {
+                taskFlagRoot[taskKey]["killAvatar"].Add(avatarId);
+            }
+
+            if (LongLivePlugin.Instance?.Options.EnableDebugLogging.Value == true)
+            {
+                Log($"battle-guard force-wrote quest kill progress: taskId={taskId}, avatarId={avatarId}");
+            }
+        }
+        catch (Exception exception)
+        {
+            if (LongLivePlugin.Instance?.Options.EnableDebugLogging.Value == true)
+            {
+                Log($"battle-guard force-write quest kill progress failed: taskId={taskId}, avatarId={avatarId}, reason={exception.GetType().Name}: {exception.Message}");
+            }
+        }
+    }
+
+    public static bool HasQuestKillProgress(int taskId, int avatarId)
+    {
+        if (taskId <= 0 || avatarId <= 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            var player = PlayerEx.Player;
+            var taskFlagRoot = player?.NomelTaskFlag;
+            if (taskFlagRoot == null)
+            {
+                return false;
+            }
+
+            var taskKey = taskId.ToString();
+            return taskFlagRoot.HasField(taskKey)
+                && taskFlagRoot[taskKey].HasField("killAvatar")
+                && taskFlagRoot[taskKey]["killAvatar"].HasItem(avatarId);
+        }
+        catch (Exception exception)
+        {
+            if (LongLivePlugin.Instance?.Options.EnableDebugLogging.Value == true)
+            {
+                Log($"battle-guard quest kill-progress probe failed: taskId={taskId}, avatarId={avatarId}, reason={exception.GetType().Name}: {exception.Message}");
+            }
+
+            return false;
+        }
+    }
+
+    public static void LogQuestTaskState(int taskId, string source)
+    {
+        try
+        {
+            var player = PlayerEx.Player;
+            if (player == null || taskId <= 0 || !player.NomelTaskJson.HasField(taskId.ToString()))
+            {
+                return;
+            }
+
+            var taskJson = player.NomelTaskJson[taskId.ToString()];
+            var taskDetail = player.nomelTaskMag.GetNTaskXiangXiData(taskId);
+            Log($"{source}: taskId={taskId}, taskTypeId={taskJson["TaskID"].I}, isStart={taskJson["IsStart"].b}, deliveryType={(taskDetail?.JiaoFuType ?? -1)}, taskName={(taskDetail?.name ?? "unknown")}");
+
+            var taskSteps = player.nomelTaskMag.GetNTaskXiangXiList(taskId);
+            for (var index = 0; index < taskSteps.Count; index++)
+            {
+                var step = taskSteps[index];
+                var childId = player.NomelTaskJson[taskId.ToString()]["TaskChild"][index].I;
+                var childJson = jsonData.instance.NTaskSuiJI[childId.ToString()];
+                var childValue = childJson["Value"].I;
+                var childName = childJson["name"].Str;
+                var isEnded = player.nomelTaskMag.XiangXiTaskIsEnd(step, taskId, index);
+                var whereChildId = -1;
+                var whereChildName = "none";
+                if (player.NomelTaskJson[taskId.ToString()].HasField("TaskWhereChild") && index < player.NomelTaskJson[taskId.ToString()]["TaskWhereChild"].Count)
+                {
+                    whereChildId = player.NomelTaskJson[taskId.ToString()]["TaskWhereChild"][index].I;
+                    if (whereChildId > 0 && jsonData.instance.NTaskSuiJI.HasField(whereChildId.ToString()))
+                    {
+                        whereChildName = jsonData.instance.NTaskSuiJI[whereChildId.ToString()]["name"].Str;
+                    }
+                }
+
+                Log($"{source}: stepIndex={index}, stepType={step["type"].I}, ended={isEnded}, childId={childId}, childValue={childValue}, childName={childName}, whereChildId={whereChildId}, whereChildName={whereChildName}, desc={step["desc"].Str}, talkId={step["talkID"].Str}, place={step["Place"].Str}");
+            }
+
+        }
+        catch (Exception exception)
+        {
+            if (LongLivePlugin.Instance?.Options.EnableDebugLogging.Value == true)
+            {
+                Log($"quest task-state logging failed: taskId={taskId}, source={source}, reason={exception.GetType().Name}: {exception.Message}");
+            }
+        }
     }
 
     public static int? TryGetIntMember(object? instance, string memberName)

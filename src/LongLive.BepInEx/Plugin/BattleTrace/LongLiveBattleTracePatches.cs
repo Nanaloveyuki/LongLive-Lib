@@ -310,6 +310,7 @@ internal static class LongLiveBattleTraceAvatarDiePatch
         LongLiveBattleTraceRuntime.TrackBattlePhase("Avatar.die.prefix");
         LongLiveBattleTraceRuntime.EmitBattleSummaryIfChanged("Avatar.die.prefix");
         LongLiveBattleTraceRuntime.Log($"Avatar.die prefix: {LongLiveBattleTraceRuntime.DescribeAvatarState(__instance)}");
+        LongLiveBattleTraceRuntime.EnsureQuestKillProgressForCurrentBattleTarget("Avatar.die.prefix", __instance);
     }
 
     public static void Postfix(Avatar __instance)
