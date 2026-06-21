@@ -30,6 +30,13 @@ public sealed class LongLiveBootstrapper
             new LongLiveCompatibilityInstaller(_logger, LongLivePluginContext.Compatibility, _runtime),
             new LongLiveSceneRoutingInstaller(_logger),
             new LongLiveThirdPartyMapAdapterInstaller(_logger),
+            new LongLiveMapOverviewRuntimeInstaller(_logger, _options),
+            new LongLiveMapOverviewHostBindingInstaller(_logger, _options),
+            new LongLiveMapOverviewShellAllocationInstaller(_logger, _options),
+            new LongLiveMapOverviewShellReservationInstaller(_logger, _options),
+            new LongLiveMapOverviewUiInjectionInstaller(_logger, _options),
+            new LongLiveMapOverviewCustomPageInstaller(_logger, _options),
+            new LongLiveCustomMapRuntimeInstaller(_logger, _options),
             new LongLiveSceneLocalTopologyInstaller(_logger, _options),
             new LongLiveMapTraceInstaller(_logger, _options),
             new LongLiveMapSnapshotInstaller(_logger, _options),
@@ -39,6 +46,7 @@ public sealed class LongLiveBootstrapper
             new LongLiveContentInspectionInstaller(_logger, _runtime, _options),
             new LongLiveNativeProbeInstaller(_logger, _native, _options),
             new LongLiveDemoInstaller(_logger, _runtime, _options),
+            new LongLiveMapDemoInstaller(_logger, _runtime, _options),
             new LongLiveJsonModDemoInstaller(_logger, _runtime, _options),
         };
     }
@@ -105,6 +113,14 @@ public sealed class LongLiveBootstrapper
         LongLiveFadeOptimizationRuntime.OnSceneLoaded(scene, mode);
         LongLiveMapTraceRuntime.OnUnitySceneLoaded(scene, mode);
         LongLiveMapSnapshotRuntime.OnSceneLoaded(scene);
+        LongLiveMapOverviewRuntime.OnSceneLoaded(scene, mode);
+        LongLiveMapOverviewHostBindingRuntime.OnSceneLoaded(scene, mode);
+        LongLiveMapOverviewShellAllocationRuntime.OnSceneLoaded(scene, mode);
+        LongLiveMapOverviewShellReservationRuntime.OnSceneLoaded(scene, mode);
+        LongLiveMapOverviewUiInjectionRuntime.OnSceneLoaded(scene, mode);
+        LongLiveMapOverviewCustomPageRuntime.OnSceneLoaded(scene, mode);
+        LongLiveCustomMapRuntimeState.OnSceneLoaded(scene, mode);
+        LongLiveCustomMapRuntimeActivationRuntime.OnSceneLoaded(scene, mode);
         LongLiveSceneLocalTopologyRuntime.OnSceneLoaded(scene, mode);
         LongLiveUiController.OnSceneLoaded(scene);
         LongLiveThirdPartyMapAdapterInstaller.RetryPending(_logger);
@@ -141,6 +157,7 @@ public sealed class LongLiveBootstrapper
 
         _logger.LogInfo("Next runtime became available. Running LongLive installers.");
         RunInstallers();
+        TryExportSceneRoutingPlanningDump();
         PublishHostHandshakeState();
         MarkBootstrapCompleted();
         _runtimeInstallCompleted = true;
@@ -197,6 +214,31 @@ public sealed class LongLiveBootstrapper
         if (_options.EnableDebugLogging.Value)
         {
             _logger.LogInfo($"LongLive published host handshake state to Next. version={handshake.PluginVersion}, capabilities={string.Join(",", handshake.Capabilities)}");
+        }
+    }
+
+    private void TryExportSceneRoutingPlanningDump()
+    {
+        if (!_options.EnableAutoExportSceneRoutingPlanningDump.Value)
+        {
+            return;
+        }
+
+        if (!_options.EnableDebugLogging.Value)
+        {
+            _logger.LogInfo("LongLive scene-routing planning dump requested, but debug logging is disabled. Export skipped.");
+            return;
+        }
+
+        var service = new LongLiveSceneRoutingPlanningDumpService();
+        var result = service.ExportCurrentBundle();
+        if (result.Success)
+        {
+            _logger.LogInfo($"LongLive scene-routing planning dump exported: {result.Path}");
+        }
+        else
+        {
+            _logger.LogInfo($"LongLive scene-routing planning dump failed: {result.Summary}");
         }
     }
 }

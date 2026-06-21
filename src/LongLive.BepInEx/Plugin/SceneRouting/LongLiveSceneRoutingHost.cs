@@ -43,6 +43,11 @@ public sealed class LongLiveSceneRoutingHost
 
     public ILongLiveCustomMapRuntimeFeature CustomMapRuntime => _customMapRuntimeFeature;
 
+    public LongLiveSceneRoutingRegistrationSnapshot CaptureRegistrationSnapshot()
+    {
+        return LongLiveSceneRoutingRegistrationSnapshotBuilder.Capture(this, _coordinator.SceneRouting);
+    }
+
     public void RegisterFeature(ILongLiveSceneRoutingFeature feature)
     {
         _features.Add(feature);

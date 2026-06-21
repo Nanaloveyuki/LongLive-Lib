@@ -199,4 +199,94 @@ public static class LongLivePluginContext
     {
         return LongLiveSceneLocalTopologyRuntime.CaptureSnapshot(sampleLimit);
     }
+
+    public static LongLiveMapOverviewRuntimeSnapshot GetMapOverviewRuntimeSnapshot(int sampleLimit = 8)
+    {
+        return LongLiveMapOverviewRuntime.CaptureSnapshot(sampleLimit);
+    }
+
+    public static LongLiveMapOverviewHostBindingRuntimeSnapshot GetMapOverviewHostBindingRuntimeSnapshot(int sampleLimit = 8)
+    {
+        return LongLiveMapOverviewHostBindingRuntime.CaptureSnapshot(sampleLimit);
+    }
+
+    public static LongLiveMapOverviewShellAllocationRuntimeSnapshot GetMapOverviewShellAllocationRuntimeSnapshot(int sampleLimit = 8)
+    {
+        return LongLiveMapOverviewShellAllocationRuntime.CaptureSnapshot(sampleLimit);
+    }
+
+    public static LongLiveMapOverviewShellReservationRuntimeSnapshot GetMapOverviewShellReservationRuntimeSnapshot(int sampleLimit = 8)
+    {
+        return LongLiveMapOverviewShellReservationRuntime.CaptureSnapshot(sampleLimit);
+    }
+
+    public static LongLiveMapOverviewCustomPageRuntimeSnapshot GetMapOverviewCustomPageRuntimeSnapshot(int sampleLimit = 8)
+    {
+        return LongLiveMapOverviewCustomPageRuntime.CaptureSnapshot(sampleLimit);
+    }
+
+    public static LongLiveMapOverviewInstallPlan GetMapOverviewInstallPlan()
+    {
+        return LongLiveMapOverviewInstallPlanBuilder.Build(MapOverview);
+    }
+
+    public static LongLiveCustomMapRuntimeStateSnapshot GetCustomMapRuntimeStateSnapshot(int sampleLimit = 8)
+    {
+        return LongLiveCustomMapRuntimeState.CaptureSnapshot(sampleLimit);
+    }
+
+    public static LongLiveCustomMapRuntimeActivationRuntimeSnapshot GetCustomMapRuntimeActivationRuntimeSnapshot(int sampleLimit = 8)
+    {
+        return LongLiveCustomMapRuntimeActivationRuntime.CaptureSnapshot(sampleLimit);
+    }
+
+    public static LongLiveCustomMapRuntimeActivationExecutionPlan GetCustomMapRuntimeActivationExecutionPlan()
+    {
+        return LongLiveCustomMapRuntimeActivationPlanner.Build(GetCustomMapRuntimeActivationRuntimeSnapshot(int.MaxValue));
+    }
+
+    public static LongLiveCustomMapRuntimeActivationExecutionReport GetCustomMapRuntimeActivationExecutionReport(bool logSteps = false)
+    {
+        return LongLiveCustomMapRuntimeActivationExecutor.ExecutePlan(GetCustomMapRuntimeActivationExecutionPlan(), GetLogger(), logSteps);
+    }
+
+    public static LongLiveCustomMapRuntimeActivationArtifactSnapshot GetCustomMapRuntimeActivationArtifactSnapshot(int sampleLimit = 8)
+    {
+        return LongLiveCustomMapRuntimeActivationArtifactRegistry.CaptureSnapshot(sampleLimit);
+    }
+
+    public static LongLiveCustomMapRuntimeActivationPlan GetCustomMapRuntimeActivationPlan()
+    {
+        return LongLiveCustomMapRuntimeActivationPlanBuilder.Build(CustomMapRuntime);
+    }
+
+    public static LongLiveMapOverviewExecutionPlan GetMapOverviewExecutionPlan()
+    {
+        return LongLiveMapOverviewExecutionPlanner.Build(GetMapOverviewInstallPlan());
+    }
+
+    public static LongLiveMapOverviewShellAllocationPlan GetMapOverviewShellAllocationPlan()
+    {
+        return LongLiveMapOverviewShellAllocationPlanBuilder.Build(GetMapOverviewInstallPlan(), GetMapOverviewHostBindingRuntimeSnapshot(int.MaxValue));
+    }
+
+    public static LongLiveMapOverviewExecutionReport GetMapOverviewExecutionReport(bool logSteps = false)
+    {
+        return LongLiveMapOverviewExecutionExecutor.ExecuteDryRun(GetMapOverviewExecutionPlan(), GetLogger(), logSteps);
+    }
+
+    public static LongLiveCustomMapRuntimeExecutionPlan GetCustomMapRuntimeExecutionPlan()
+    {
+        return LongLiveCustomMapRuntimeExecutionPlanner.Build(GetCustomMapRuntimeActivationPlan());
+    }
+
+    public static LongLiveCustomMapRuntimeExecutionReport GetCustomMapRuntimeExecutionReport(bool logSteps = false)
+    {
+        return LongLiveCustomMapRuntimeExecutionExecutor.ExecuteDryRun(GetCustomMapRuntimeExecutionPlan(), GetLogger(), logSteps);
+    }
+
+    public static LongLiveSceneRoutingRegistrationSnapshot GetSceneRoutingRegistrationSnapshot()
+    {
+        return LongLiveSceneRoutingRegistrationSnapshotBuilder.Capture(SceneRoutingHost, SceneRouting);
+    }
 }

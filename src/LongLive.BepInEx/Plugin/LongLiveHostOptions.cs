@@ -11,6 +11,11 @@ public sealed class LongLiveHostOptions
         ConfigEntry<string> nativeLibraryPath,
         ConfigEntry<bool> enableMapTrace,
         ConfigEntry<bool> enableMapTraceVerbose,
+        ConfigEntry<bool> enableMapOverviewRuntimeLogging,
+        ConfigEntry<bool> enableMapOverviewRuntimeVerbose,
+        ConfigEntry<bool> enableCustomMapRuntimeLogging,
+        ConfigEntry<bool> enableCustomMapRuntimeVerbose,
+        ConfigEntry<bool> enableAutoExportSceneRoutingPlanningDump,
         ConfigEntry<bool> enableSceneLocalTopologyLogging,
         ConfigEntry<bool> enableSceneLocalTopologyVerbose,
         ConfigEntry<bool> enableAutoExportMapSnapshot,
@@ -32,6 +37,7 @@ public sealed class LongLiveHostOptions
         ConfigEntry<bool> enableVToolsCompatibility,
         ConfigEntry<bool> enableDemoCommandRegistration,
         ConfigEntry<bool> enableDemoQueryRegistration,
+        ConfigEntry<bool> enableDemoMapRegistration,
         ConfigEntry<bool> enableJsonModDemoInstall,
         ConfigEntry<string> jsonModDemoPath,
         ConfigEntry<string> contentBackend)
@@ -42,6 +48,11 @@ public sealed class LongLiveHostOptions
         NativeLibraryPath = nativeLibraryPath;
         EnableMapTrace = enableMapTrace;
         EnableMapTraceVerbose = enableMapTraceVerbose;
+        EnableMapOverviewRuntimeLogging = enableMapOverviewRuntimeLogging;
+        EnableMapOverviewRuntimeVerbose = enableMapOverviewRuntimeVerbose;
+        EnableCustomMapRuntimeLogging = enableCustomMapRuntimeLogging;
+        EnableCustomMapRuntimeVerbose = enableCustomMapRuntimeVerbose;
+        EnableAutoExportSceneRoutingPlanningDump = enableAutoExportSceneRoutingPlanningDump;
         EnableSceneLocalTopologyLogging = enableSceneLocalTopologyLogging;
         EnableSceneLocalTopologyVerbose = enableSceneLocalTopologyVerbose;
         EnableAutoExportMapSnapshot = enableAutoExportMapSnapshot;
@@ -63,6 +74,7 @@ public sealed class LongLiveHostOptions
         EnableVToolsCompatibility = enableVToolsCompatibility;
         EnableDemoCommandRegistration = enableDemoCommandRegistration;
         EnableDemoQueryRegistration = enableDemoQueryRegistration;
+        EnableDemoMapRegistration = enableDemoMapRegistration;
         EnableJsonModDemoInstall = enableJsonModDemoInstall;
         JsonModDemoPath = jsonModDemoPath;
         ContentBackend = contentBackend;
@@ -79,6 +91,16 @@ public sealed class LongLiveHostOptions
     public ConfigEntry<bool> EnableMapTrace { get; }
 
     public ConfigEntry<bool> EnableMapTraceVerbose { get; }
+
+    public ConfigEntry<bool> EnableMapOverviewRuntimeLogging { get; }
+
+    public ConfigEntry<bool> EnableMapOverviewRuntimeVerbose { get; }
+
+    public ConfigEntry<bool> EnableCustomMapRuntimeLogging { get; }
+
+    public ConfigEntry<bool> EnableCustomMapRuntimeVerbose { get; }
+
+    public ConfigEntry<bool> EnableAutoExportSceneRoutingPlanningDump { get; }
 
     public ConfigEntry<bool> EnableSceneLocalTopologyLogging { get; }
 
@@ -121,6 +143,8 @@ public sealed class LongLiveHostOptions
     public ConfigEntry<bool> EnableDemoCommandRegistration { get; }
 
     public ConfigEntry<bool> EnableDemoQueryRegistration { get; }
+
+    public ConfigEntry<bool> EnableDemoMapRegistration { get; }
 
     public ConfigEntry<bool> EnableJsonModDemoInstall { get; }
 

@@ -21,6 +21,8 @@ public sealed class LongLiveSceneRoutingCoordinator
         _features = features ?? throw new ArgumentNullException(nameof(features));
     }
 
+    public ILongLiveSceneRoutingService SceneRouting => _sceneRouting;
+
     public void InitializeFeatures()
     {
         _features.InitializeAll(_sceneRouting);

@@ -144,6 +144,36 @@ public sealed class LongLivePlugin : BaseUnityPlugin
             false,
             "Enable additional map trace detail such as sampled node inventories and repeated structure snapshots. Effective only when both EnableDebugLogging and EnableMapTrace are true.");
 
+        var enableMapOverviewRuntimeLogging = Config.Bind(
+            "LongLive",
+            "EnableMapOverviewRuntimeLogging",
+            false,
+            "Enable LongLive map-overview runtime summary logs for registered pages, regions, and route projections. Effective only when EnableDebugLogging is also true.");
+
+        var enableMapOverviewRuntimeVerbose = Config.Bind(
+            "LongLive",
+            "EnableMapOverviewRuntimeVerbose",
+            false,
+            "Enable additional map-overview runtime detail such as per-page and per-mod registration samples. Effective only when both EnableDebugLogging and EnableMapOverviewRuntimeLogging are true.");
+
+        var enableCustomMapRuntimeLogging = Config.Bind(
+            "LongLive",
+            "EnableCustomMapRuntimeLogging",
+            false,
+            "Enable LongLive custom-map runtime planning logs for registered runtime scenes, bootstraps, and active-scene matches. Effective only when EnableDebugLogging is also true.");
+
+        var enableCustomMapRuntimeVerbose = Config.Bind(
+            "LongLive",
+            "EnableCustomMapRuntimeVerbose",
+            false,
+            "Enable additional custom-map runtime detail such as bootstrap route summaries and per-mod runtime registration samples. Effective only when both EnableDebugLogging and EnableCustomMapRuntimeLogging are true.");
+
+        var enableAutoExportSceneRoutingPlanningDump = Config.Bind(
+            "LongLive",
+            "EnableAutoExportSceneRoutingPlanningDump",
+            false,
+            "Export the current scene-routing planning bundle as JSON during runtime installer execution. Effective only when EnableDebugLogging is also true.");
+
         var enableSceneLocalTopologyLogging = Config.Bind(
             "LongLive",
             "EnableSceneLocalTopologyLogging",
@@ -270,6 +300,12 @@ public sealed class LongLivePlugin : BaseUnityPlugin
             true,
             "Register the demo LongLiveDebugEnabled expression query during bootstrap.");
 
+        var enableDemoMapRegistration = Config.Bind(
+            "LongLive",
+            "EnableDemoMapRegistration",
+            true,
+            "Register the built-in LongLive demo map draft, topology batch, and route-resolution demo hooks during bootstrap.");
+
         var enableJsonModDemoInstall = Config.Bind(
             "LongLive",
             "EnableJsonModDemoInstall",
@@ -295,6 +331,11 @@ public sealed class LongLivePlugin : BaseUnityPlugin
             nativeLibraryPath,
             enableMapTrace,
             enableMapTraceVerbose,
+            enableMapOverviewRuntimeLogging,
+            enableMapOverviewRuntimeVerbose,
+            enableCustomMapRuntimeLogging,
+            enableCustomMapRuntimeVerbose,
+            enableAutoExportSceneRoutingPlanningDump,
             enableSceneLocalTopologyLogging,
             enableSceneLocalTopologyVerbose,
             enableAutoExportMapSnapshot,
@@ -316,6 +357,7 @@ public sealed class LongLivePlugin : BaseUnityPlugin
             enableVToolsCompatibility,
             enableDemoCommandRegistration,
             enableDemoQueryRegistration,
+            enableDemoMapRegistration,
             enableJsonModDemoInstall,
             jsonModDemoPath,
             contentBackend);

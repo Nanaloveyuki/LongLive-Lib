@@ -22,7 +22,9 @@ public sealed class LongLiveSceneRoutingInstaller : ILongLiveInstaller
         RegisterHostSnapshot(host.Coordinator);
         host.InitializeFeatures();
         var snapshot = service.CaptureSnapshot();
-        _logger.LogInfo($"LongLive scene routing ready. activeScene={snapshot.ActiveSceneName}, kind={snapshot.ActiveSceneKind}, place={snapshot.PlaceName}, registeredRoutes={service.Catalog.Routes.Count}");
+        var registration = host.CaptureRegistrationSnapshot();
+        _logger.LogInfo($"LongLive scene routing ready. activeScene={snapshot.ActiveSceneName}, kind={snapshot.ActiveSceneKind}, place={snapshot.PlaceName}, registeredRoutes={registration.RouteCount}, pages={registration.WorldMapPageCount}, regions={registration.HighlightRegionCount}, nodes={registration.WorldNodeCount}, runtimeScenes={registration.CustomRuntimeSceneCount}, topologies={registration.SceneLocalTopologyCount}");
+        LongLiveSceneRoutingStartupReporter.LogSummary(_logger);
     }
 
     private void RegisterHostSnapshot(LongLiveSceneRoutingCoordinator coordinator)

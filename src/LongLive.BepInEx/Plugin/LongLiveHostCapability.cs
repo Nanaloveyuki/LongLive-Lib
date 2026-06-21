@@ -24,5 +24,13 @@ public static class LongLiveHostCapability
 
     public const string SceneRouting = "scene-routing";
 
+    public const string MapOverview = "map-overview";
+
+    public const string CustomMapRuntime = "custom-map-runtime";
+
+    public const string SceneLocalTopology = "scene-local-topology";
+
+    public const string SceneRoutingPlanningDump = "scene-routing-planning-dump";
+
     public const string CompatibilityRedirect = "compatibility-redirect";
 }

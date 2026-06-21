@@ -584,9 +584,11 @@ internal static class LongLiveFadeOptimizationRuntime
             return false;
         }
 
-        return string.Equals(sceneName, "AllMaps", StringComparison.Ordinal)
-            || string.Equals(sceneName, "Sea", StringComparison.Ordinal)
-            || sceneName.IndexOf("Sea", StringComparison.Ordinal) >= 0;
+        var resolvedSceneName = sceneName!;
+
+        return string.Equals(resolvedSceneName, "AllMaps", StringComparison.Ordinal)
+            || string.Equals(resolvedSceneName, "Sea", StringComparison.Ordinal)
+            || resolvedSceneName.IndexOf("Sea", StringComparison.Ordinal) >= 0;
     }
 
     private static bool IsImmediateFightScene(string? sceneName)

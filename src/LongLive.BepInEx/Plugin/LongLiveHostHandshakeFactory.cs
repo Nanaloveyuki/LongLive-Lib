@@ -33,6 +33,9 @@ internal static class LongLiveHostHandshakeFactory
             LongLiveHostCapability.MainMenuEntry,
             LongLiveHostCapability.MapRegistryPlanning,
             LongLiveHostCapability.SceneRouting,
+            LongLiveHostCapability.MapOverview,
+            LongLiveHostCapability.CustomMapRuntime,
+            LongLiveHostCapability.SceneLocalTopology,
             LongLiveHostCapability.CompatibilityRedirect,
         };
 
@@ -69,6 +72,11 @@ internal static class LongLiveHostHandshakeFactory
         if (options.EnableAutoExportMapSnapshot.Value)
         {
             capabilities.Add(LongLiveHostCapability.MapSnapshotExport);
+        }
+
+        if (options.EnableAutoExportSceneRoutingPlanningDump.Value)
+        {
+            capabilities.Add(LongLiveHostCapability.SceneRoutingPlanningDump);
         }
 
         return capabilities.AsReadOnly();

@@ -119,10 +119,16 @@ public sealed class LongLiveBepInExSceneRoutingService : ILongLiveSceneRoutingSe
     public LongLiveSceneRoutingSnapshot CaptureSnapshot()
     {
         var sceneName = SafeGetCurrentSceneName();
+        Catalog.TryGetBySceneName(sceneName, out var registeredRoute);
         var snapshot = new LongLiveSceneRoutingSnapshot
         {
             ActiveSceneName = sceneName,
-            ActiveSceneKind = ResolveSceneKind(sceneName),
+            ActiveSceneKind = registeredRoute?.RouteKind ?? ResolveSceneKind(sceneName),
+            HasRegisteredRoute = registeredRoute is not null,
+            RegisteredSceneLogicalId = registeredRoute?.LogicalId ?? string.Empty,
+            RegisteredOwningModId = registeredRoute?.OwningModId ?? string.Empty,
+            RegisteredOverviewPageId = registeredRoute?.OverviewPageId ?? string.Empty,
+            RegisteredHighlightRegionId = registeredRoute?.HighlightRegionId ?? string.Empty,
             PlaceName = ResolvePlaceName(sceneName),
         };
 
@@ -183,6 +189,13 @@ public sealed class LongLiveBepInExSceneRoutingService : ILongLiveSceneRoutingSe
                 "Unable to resolve route kind from the requested scene name.");
         }
 
+        var runtimeReadinessFailure = TryRejectUnreadyCustomRuntimeTarget(address, resolution);
+        if (runtimeReadinessFailure is not null)
+        {
+            _logger.LogWarning($"LongLive scene routing blocked player warp to unready runtime scene. scene={runtimeReadinessFailure.RequestedSceneName}, logicalId={(string.IsNullOrWhiteSpace(address.LogicalSceneId) ? "n/a" : address.LogicalSceneId)}, code={runtimeReadinessFailure.FailureCode}, detail={runtimeReadinessFailure.Detail}");
+            return runtimeReadinessFailure;
+        }
+
         return _executor.WarpPlayer(address, resolution);
     }
 
@@ -217,7 +230,42 @@ public sealed class LongLiveBepInExSceneRoutingService : ILongLiveSceneRoutingSe
                 "Unable to resolve route kind from the requested scene name.");
         }
 
+        var runtimeReadinessFailure = TryRejectUnreadyCustomRuntimeTarget(address, resolution);
+        if (runtimeReadinessFailure is not null)
+        {
+            _logger.LogWarning($"LongLive scene routing blocked NPC warp to unready runtime scene. npc={normalizedNpcId}, scene={runtimeReadinessFailure.RequestedSceneName}, logicalId={(string.IsNullOrWhiteSpace(address.LogicalSceneId) ? "n/a" : address.LogicalSceneId)}, code={runtimeReadinessFailure.FailureCode}, detail={runtimeReadinessFailure.Detail}");
+            return runtimeReadinessFailure;
+        }
+
         return _executor.WarpNpc(normalizedNpcId, address, resolution);
+    }
+
+    private static LongLiveSceneRouteResult? TryRejectUnreadyCustomRuntimeTarget(LongLiveSceneAddress address, LongLiveSceneRouteResolution resolution)
+    {
+        if (!LongLiveCustomMapRuntimeReadinessEvaluator.TryEvaluateForAddress(address, resolution, out var readiness) || readiness is null)
+        {
+            return null;
+        }
+
+        if (readiness.CanEnterNow)
+        {
+            return null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(address.LogicalSceneId)
+            && LongLiveCustomMapRuntimeActivationArtifactRegistry.TryGet(address.LogicalSceneId, out var artifact)
+            && artifact is not null
+            && artifact.HasProxyRouteBinding)
+        {
+            return null;
+        }
+
+        return LongLiveSceneRouteResult.Failure(
+            string.IsNullOrWhiteSpace(address.SceneName) ? readiness.SceneName : address.SceneName,
+            resolution.RouteKind,
+            address.EntryIndex,
+            "runtime-scene-not-ready",
+            readiness.Detail);
     }
 
     private static LongLiveSceneRouteKind TryResolveSceneKindFromMetadata(string sceneName)
