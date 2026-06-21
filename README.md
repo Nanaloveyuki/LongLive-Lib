@@ -39,19 +39,19 @@ The current working split is:
 
 - [`devdocs/BepInEx-master/`](./devdocs/BepInEx-master/): local BepInEx source and documentation copy
 - [`devdocs/Next-main/`](./devdocs/Next-main/): local Next source and documentation copy
-- [`docs/bootstrap-notes.md`](./docs/bootstrap-notes.md): current bootstrap assumptions and constraints
-- [`docs/next-runtime-design.md`](./docs/next-runtime-design.md): current `LongLive.Next` API and bootstrap runtime design
+- [`docs/design/bootstrap-notes.md`](./docs/design/bootstrap-notes.md): current bootstrap assumptions and constraints
+- [`docs/design/next-runtime-design.md`](./docs/design/next-runtime-design.md): current `LongLive.Next` API and bootstrap runtime design
 - [`docs/next-runtime-usage.md`](./docs/next-runtime-usage.md): current usage patterns for the bootstrap runtime facade
 - [`docs/next-runtime-examples.md`](./docs/next-runtime-examples.md): short examples for the facade, extensions, and state-key helpers
-- [`docs/bepinex-host-bootstrap.md`](./docs/bepinex-host-bootstrap.md): current `LongLive.BepInEx` host bootstrap strategy
+- [`docs/design/bepinex-host-bootstrap.md`](./docs/design/bepinex-host-bootstrap.md): current `LongLive.BepInEx` host bootstrap strategy
 - [`docs/deploy-guide.md`](./docs/deploy-guide.md): short daily deployment guide and script layout
-- [`docs/distribution-and-bridge-strategy.md`](./docs/distribution-and-bridge-strategy.md): planned Host, Bridge, and content-package distribution model
-- [`docs/bridge-host-state-contract.md`](./docs/bridge-host-state-contract.md): published Next-state contract for Bridge-side host detection
-- [`docs/mod-schema-draft.md`](./docs/mod-schema-draft.md): first draft of the declarative JSON-mod schema
+- [`docs/design/distribution-and-bridge-strategy.md`](./docs/design/distribution-and-bridge-strategy.md): planned Host, Bridge, and content-package distribution model
+- [`docs/design/bridge-host-state-contract.md`](./docs/design/bridge-host-state-contract.md): published Next-state contract for Bridge-side host detection
+- [`docs/design/mod-schema-draft.md`](./docs/design/mod-schema-draft.md): first draft of the declarative JSON-mod schema
 - [`docs/mod-loader-usage.md`](./docs/mod-loader-usage.md): current usage pattern for JSON-mod loading and validation
-- [`docs/content-schema-draft.md`](./docs/content-schema-draft.md): first draft of content-oriented JSON-mod declarations
-- [`docs/next-content-backend-design.md`](./docs/next-content-backend-design.md): planned boundary for a future Next-oriented content backend
-- [`docs/native-core-feasibility.md`](./docs/native-core-feasibility.md): first-stage Rust native-core feasibility path
+- [`docs/design/content-schema-draft.md`](./docs/design/content-schema-draft.md): first draft of content-oriented JSON-mod declarations
+- [`docs/design/next-content-backend-design.md`](./docs/design/next-content-backend-design.md): planned boundary for a future Next-oriented content backend
+- [`docs/design/native-core-feasibility.md`](./docs/design/native-core-feasibility.md): first-stage Rust native-core feasibility path
 - [`src/`](./src/): the first compile-ready C# project skeleton
 
 ## Recommended Next Steps
