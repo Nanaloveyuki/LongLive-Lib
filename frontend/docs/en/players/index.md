@@ -1,6 +1,6 @@
 # Players
 
-If you only want to know what this mod does in game, start here.
+If you only want to know what changes after installing this mod, start here.
 
 - [Features](./features.md)
 - [Getting Started](./getting-started.md)

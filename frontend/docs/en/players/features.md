@@ -1,6 +1,6 @@
 # Features
 
-These are the player-facing parts of LongLive Lib that matter most right now.
+These are the changes players are most likely to notice right away.
 
 ## Bulk item use feels smoother
 
@@ -18,7 +18,7 @@ This path currently includes:
 
 When the game throws too many prompts in a short time, the right side of the screen can become unreadable.
 
-LongLive Lib tries to merge repeated prompts and clear overloaded prompt queues more quickly.
+LongLive Lib tries to merge repeated prompts and clear overloaded prompt queues more quickly, so the screen stays readable.
 
 ## Battle-side overkill is guarded
 
@@ -32,8 +32,21 @@ LongLive Lib now adds a guard layer to reduce those useless follow-up calculatio
 
 Selected black-screen and scene-transition paths are accelerated so repeated travel feels less sluggish.
 
+## TuJian search now supports pinyin
+
+The TuJian search path now supports pinyin input.
+
+If you do not want to type the original term directly, this makes the search much easier to use.
+
 ## The main-menu entry also helps players
 
 The `LongLive Lib` entry in the main menu is not only for development.
 
 It also helps you confirm whether the mod and its host layer actually loaded.
+
+## Things worth knowing
+
+- the project is still under active development
+- slightly longer startup is normal
+- using it together with `Next` is still the safer option for compatibility
+- most optimization switches can be disabled from the `F1` config menu

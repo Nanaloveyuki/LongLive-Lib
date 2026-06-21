@@ -24,3 +24,25 @@ Common options include:
 ## Check the main-menu entry if you want to confirm loading
 
 If the `LongLive Lib` entry appears in the main menu, the host side is usually up and running.
+
+If you can also open the panel and see state information, the basic runtime path is usually working.
+
+## Where to look first when something feels wrong
+
+If your problem is closer to “the feature did not trigger”, “the entry is missing”, or “the game still feels stuck”, start with:
+
+- [Workshop Notes](../workshop/overview.md)
+- [Upload Checklist](../workshop/upload-checklist.md)
+
+If you are deploying locally, also check:
+
+- [Deployment Guide](../guide/deploy-guide.md)
+
+## Which switches can be disabled
+
+If you do not like a specific optimization, these are the common toggles in `F1`:
+
+- `EnableBulkItemUseOptimization`
+- `EnablePopTipOptimization`
+- `EnableExperimentalBattleGuard`
+- `EnableFadeOptimization`

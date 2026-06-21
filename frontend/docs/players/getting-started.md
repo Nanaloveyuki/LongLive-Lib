@@ -29,6 +29,8 @@ LongLive Lib 会多加载一些运行时内容。
 
 如果入口正常出现，说明这套 Host 基本已经起来了。
 
+如果点进去还能看到状态信息，通常就说明基础部分已经在工作了。
+
 ## 遇到问题先看哪里
 
 如果你遇到的是“功能没生效”“界面没出现”“还是很卡”这类问题，可以先看：
@@ -39,3 +41,12 @@ LongLive Lib 会多加载一些运行时内容。
 如果你是在本地自己部署，也可以参考：
 
 - [部署指南](../guide/deploy-guide.md)
+
+## 哪些功能可以自己关
+
+如果你不喜欢某一类优化，通常可以在 `F1` 里直接关掉。常见的开关有：
+
+- `EnableBulkItemUseOptimization`
+- `EnablePopTipOptimization`
+- `EnableExperimentalBattleGuard`
+- `EnableFadeOptimization`
