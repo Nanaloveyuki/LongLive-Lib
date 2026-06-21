@@ -46,7 +46,7 @@ To stage the local-test content shell under `本地Mod测试`:
 To stage a workshop upload folder:
 
 ```powershell
-./scripts/longlive.ps1 -Action release-stage -Version 0.2.0
+./scripts/longlive.ps1 -Action release-stage -Version 0.2.1
 ```
 
 The staged upload root stays fixed at `artifacts/workshop/LongLive.Lib/` so the game-generated `Mod.bin` can keep tracking the same workshop item across updates.
