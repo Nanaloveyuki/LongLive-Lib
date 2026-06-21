@@ -4,6 +4,8 @@ namespace LongLive.Mods.Maps;
 
 public sealed class LongLiveMapOverviewRouteProjection
 {
+    public string OwningModId { get; set; } = string.Empty;
+
     public string PageId { get; set; } = string.Empty;
 
     public string RegionId { get; set; } = string.Empty;

@@ -89,6 +89,16 @@ public sealed class LongLiveMapOverviewCatalog : ILongLiveMapOverviewCatalog
         return FilterPages(page => string.Equals(page.OwningModId, owningModId, StringComparison.Ordinal));
     }
 
+    public IReadOnlyList<LongLiveHighlightRegionDescriptor> GetRegionsForMod(string owningModId)
+    {
+        return FilterRegions(region => string.Equals(region.OwningModId, owningModId, StringComparison.Ordinal));
+    }
+
+    public IReadOnlyList<LongLiveWorldNodeDescriptor> GetNodesForMod(string owningModId)
+    {
+        return FilterNodes(node => string.Equals(node.OwningModId, owningModId, StringComparison.Ordinal));
+    }
+
     public IReadOnlyList<LongLiveHighlightRegionDescriptor> GetRegionsForPage(string pageId)
     {
         return FilterRegions(region => string.Equals(region.PageId, pageId, StringComparison.Ordinal));
@@ -97,6 +107,30 @@ public sealed class LongLiveMapOverviewCatalog : ILongLiveMapOverviewCatalog
     public IReadOnlyList<LongLiveWorldNodeDescriptor> GetNodesForPage(string pageId)
     {
         return FilterNodes(node => string.Equals(node.PageId, pageId, StringComparison.Ordinal));
+    }
+
+    public IReadOnlyList<LongLiveWorldNodeDescriptor> GetNodesForRegion(string regionId)
+    {
+        var nodes = new List<LongLiveWorldNodeDescriptor>();
+        foreach (var region in _regions.Values)
+        {
+            if (!string.Equals(region.LogicalId, regionId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            foreach (var node in _nodes.Values)
+            {
+                if (string.Equals(node.PageId, region.PageId, StringComparison.Ordinal))
+                {
+                    nodes.Add(node);
+                }
+            }
+
+            break;
+        }
+
+        return nodes;
     }
 
     private IReadOnlyList<LongLiveWorldMapPageDescriptor> FilterPages(Func<LongLiveWorldMapPageDescriptor, bool> predicate)

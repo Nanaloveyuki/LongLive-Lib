@@ -26,9 +26,13 @@ public sealed class LongLiveSceneRoutingRegistry
             _catalog.Register(new LongLiveSceneRouteDescriptor
             {
                 LogicalId = scene.LogicalId,
+                OwningModId = scene.OwningModId,
                 SceneName = scene.SceneName,
                 RouteKind = LongLiveSceneRoutingMapper.ToRouteKind(scene.MapKind),
                 DisplayName = scene.DisplayName,
+                OverviewPageId = scene.OverviewPageId,
+                HighlightRegionId = scene.HighlightRegionId,
+                AssetBundleId = scene.AssetBundleId,
                 HostMapType = scene.HostMapType,
                 HostOutsideScenePos = scene.HostOutsideScenePos,
                 OutsideSceneName = scene.OutsideSceneName,

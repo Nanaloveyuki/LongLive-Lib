@@ -7,6 +7,7 @@ public sealed class LongLiveCustomMapRuntimeBootstrapCatalog : ILongLiveCustomMa
 {
     private readonly Dictionary<string, LongLiveCustomMapRuntimeBootstrapDescriptor> _bySceneLogicalId = new Dictionary<string, LongLiveCustomMapRuntimeBootstrapDescriptor>(StringComparer.Ordinal);
     private readonly Dictionary<string, LongLiveCustomMapRuntimeBootstrapDescriptor> _bySceneName = new Dictionary<string, LongLiveCustomMapRuntimeBootstrapDescriptor>(StringComparer.Ordinal);
+    private readonly Dictionary<string, LongLiveCustomMapRuntimeBootstrapDescriptor> _byEntryNodeLogicalId = new Dictionary<string, LongLiveCustomMapRuntimeBootstrapDescriptor>(StringComparer.Ordinal);
 
     public IReadOnlyCollection<LongLiveCustomMapRuntimeBootstrapDescriptor> Bootstraps => _bySceneLogicalId.Values;
 
@@ -29,6 +30,11 @@ public sealed class LongLiveCustomMapRuntimeBootstrapCatalog : ILongLiveCustomMa
         if (!string.IsNullOrWhiteSpace(descriptor.SceneName))
         {
             _bySceneName[descriptor.SceneName] = descriptor;
+        }
+
+        if (!string.IsNullOrWhiteSpace(descriptor.EntryNodeLogicalId))
+        {
+            _byEntryNodeLogicalId[descriptor.EntryNodeLogicalId] = descriptor;
         }
     }
 
@@ -54,6 +60,17 @@ public sealed class LongLiveCustomMapRuntimeBootstrapCatalog : ILongLiveCustomMa
         return _bySceneName.TryGetValue(sceneName, out descriptor);
     }
 
+    public bool TryGetByEntryNodeLogicalId(string nodeLogicalId, out LongLiveCustomMapRuntimeBootstrapDescriptor? descriptor)
+    {
+        if (string.IsNullOrWhiteSpace(nodeLogicalId))
+        {
+            descriptor = null;
+            return false;
+        }
+
+        return _byEntryNodeLogicalId.TryGetValue(nodeLogicalId, out descriptor);
+    }
+
     public IReadOnlyList<LongLiveCustomMapRuntimeBootstrapDescriptor> GetByOwningModId(string owningModId)
     {
         return Filter(descriptor => string.Equals(descriptor.OwningModId, owningModId, StringComparison.Ordinal));
@@ -67,6 +84,21 @@ public sealed class LongLiveCustomMapRuntimeBootstrapCatalog : ILongLiveCustomMa
     public IReadOnlyList<LongLiveCustomMapRuntimeBootstrapDescriptor> GetByHighlightRegionId(string regionId)
     {
         return Filter(descriptor => string.Equals(descriptor.HighlightRegionId, regionId, StringComparison.Ordinal));
+    }
+
+    public IReadOnlyList<LongLiveCustomMapRuntimeBootstrapDescriptor> GetByReturnSceneLogicalId(string sceneLogicalId)
+    {
+        return Filter(descriptor => string.Equals(descriptor.ReturnSceneLogicalId, sceneLogicalId, StringComparison.Ordinal));
+    }
+
+    public IReadOnlyList<LongLiveCustomMapRuntimeBootstrapDescriptor> GetByReturnSceneName(string sceneName)
+    {
+        return Filter(descriptor => string.Equals(descriptor.ReturnSceneName, sceneName, StringComparison.Ordinal));
+    }
+
+    public IReadOnlyList<LongLiveCustomMapRuntimeBootstrapDescriptor> GetByRouteKind(LongLive.Mods.SceneRouting.LongLiveSceneRouteKind routeKind)
+    {
+        return Filter(descriptor => descriptor.RouteKind == routeKind);
     }
 
     private IReadOnlyList<LongLiveCustomMapRuntimeBootstrapDescriptor> Filter(Func<LongLiveCustomMapRuntimeBootstrapDescriptor, bool> predicate)

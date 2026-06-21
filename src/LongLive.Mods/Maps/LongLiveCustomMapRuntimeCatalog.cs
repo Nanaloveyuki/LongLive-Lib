@@ -50,10 +50,30 @@ public sealed class LongLiveCustomMapRuntimeCatalog : ILongLiveCustomMapRuntimeC
 
     public IReadOnlyList<LongLiveSceneDescriptor> GetScenesForMod(string owningModId)
     {
+        return Filter(scene => string.Equals(scene.OwningModId, owningModId, StringComparison.Ordinal));
+    }
+
+    public IReadOnlyList<LongLiveSceneDescriptor> GetScenesForOverviewPageId(string pageId)
+    {
+        return Filter(scene => string.Equals(scene.OverviewPageId, pageId, StringComparison.Ordinal));
+    }
+
+    public IReadOnlyList<LongLiveSceneDescriptor> GetScenesForHighlightRegionId(string regionId)
+    {
+        return Filter(scene => string.Equals(scene.HighlightRegionId, regionId, StringComparison.Ordinal));
+    }
+
+    public IReadOnlyList<LongLiveSceneDescriptor> GetScenesForMapKind(LongLiveMapKind mapKind)
+    {
+        return Filter(scene => scene.MapKind == mapKind);
+    }
+
+    private IReadOnlyList<LongLiveSceneDescriptor> Filter(Func<LongLiveSceneDescriptor, bool> predicate)
+    {
         var results = new List<LongLiveSceneDescriptor>();
         foreach (var scene in _scenes.Values)
         {
-            if (string.Equals(scene.OwningModId, owningModId, StringComparison.Ordinal))
+            if (predicate(scene))
             {
                 results.Add(scene);
             }

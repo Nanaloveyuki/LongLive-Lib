@@ -18,5 +18,9 @@ public interface ILongLiveMapOverviewRoutingProjectionCatalog
 
     IReadOnlyList<LongLiveMapOverviewRouteProjection> GetByRegionId(string regionId);
 
+    IReadOnlyList<LongLiveMapOverviewRouteProjection> GetByOwningModId(string owningModId);
+
+    IReadOnlyList<LongLiveMapOverviewRouteProjection> GetByRouteKind(LongLive.Mods.SceneRouting.LongLiveSceneRouteKind routeKind);
+
     bool TryCreateSceneAddressForNode(string nodeLogicalId, out LongLive.Mods.SceneRouting.LongLiveSceneAddress? address);
 }

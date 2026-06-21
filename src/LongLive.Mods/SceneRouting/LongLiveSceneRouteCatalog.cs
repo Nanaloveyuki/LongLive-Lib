@@ -10,6 +10,8 @@ public sealed class LongLiveSceneRouteCatalog
 
     public IReadOnlyCollection<LongLiveSceneRouteDescriptor> Routes => _bySceneName.Values;
 
+    public int RouteCount => _bySceneName.Count;
+
     public void Register(LongLiveSceneRouteDescriptor descriptor)
     {
         if (descriptor is null)
@@ -50,5 +52,39 @@ public sealed class LongLiveSceneRouteCatalog
         }
 
         return _byLogicalId.TryGetValue(logicalId, out descriptor);
+    }
+
+    public IReadOnlyList<LongLiveSceneRouteDescriptor> GetByOwningModId(string owningModId)
+    {
+        return Filter(route => string.Equals(route.OwningModId, owningModId, StringComparison.Ordinal));
+    }
+
+    public IReadOnlyList<LongLiveSceneRouteDescriptor> GetByOverviewPageId(string pageId)
+    {
+        return Filter(route => string.Equals(route.OverviewPageId, pageId, StringComparison.Ordinal));
+    }
+
+    public IReadOnlyList<LongLiveSceneRouteDescriptor> GetByHighlightRegionId(string regionId)
+    {
+        return Filter(route => string.Equals(route.HighlightRegionId, regionId, StringComparison.Ordinal));
+    }
+
+    public IReadOnlyList<LongLiveSceneRouteDescriptor> GetByRouteKind(LongLiveSceneRouteKind routeKind)
+    {
+        return Filter(route => route.RouteKind == routeKind);
+    }
+
+    private IReadOnlyList<LongLiveSceneRouteDescriptor> Filter(Func<LongLiveSceneRouteDescriptor, bool> predicate)
+    {
+        var results = new List<LongLiveSceneRouteDescriptor>();
+        foreach (var descriptor in _bySceneName.Values)
+        {
+            if (predicate(descriptor))
+            {
+                results.Add(descriptor);
+            }
+        }
+
+        return results;
     }
 }

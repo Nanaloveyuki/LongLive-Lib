@@ -12,9 +12,17 @@ public interface ILongLiveCustomMapRuntimeBootstrapCatalog
 
     bool TryGetBySceneName(string sceneName, out LongLiveCustomMapRuntimeBootstrapDescriptor? descriptor);
 
+    bool TryGetByEntryNodeLogicalId(string nodeLogicalId, out LongLiveCustomMapRuntimeBootstrapDescriptor? descriptor);
+
     IReadOnlyList<LongLiveCustomMapRuntimeBootstrapDescriptor> GetByOwningModId(string owningModId);
 
     IReadOnlyList<LongLiveCustomMapRuntimeBootstrapDescriptor> GetByOverviewPageId(string pageId);
 
     IReadOnlyList<LongLiveCustomMapRuntimeBootstrapDescriptor> GetByHighlightRegionId(string regionId);
+
+    IReadOnlyList<LongLiveCustomMapRuntimeBootstrapDescriptor> GetByReturnSceneLogicalId(string sceneLogicalId);
+
+    IReadOnlyList<LongLiveCustomMapRuntimeBootstrapDescriptor> GetByReturnSceneName(string sceneName);
+
+    IReadOnlyList<LongLiveCustomMapRuntimeBootstrapDescriptor> GetByRouteKind(LongLive.Mods.SceneRouting.LongLiveSceneRouteKind routeKind);
 }

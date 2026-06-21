@@ -82,6 +82,16 @@ public sealed class LongLiveMapOverviewRoutingProjectionCatalog : ILongLiveMapOv
         return Filter(projection => string.Equals(projection.RegionId, regionId, StringComparison.Ordinal));
     }
 
+    public IReadOnlyList<LongLiveMapOverviewRouteProjection> GetByOwningModId(string owningModId)
+    {
+        return Filter(projection => string.Equals(projection.OwningModId, owningModId, StringComparison.Ordinal));
+    }
+
+    public IReadOnlyList<LongLiveMapOverviewRouteProjection> GetByRouteKind(LongLiveSceneRouteKind routeKind)
+    {
+        return Filter(projection => projection.RouteKind == routeKind);
+    }
+
     public bool TryCreateSceneAddressForNode(string nodeLogicalId, out LongLiveSceneAddress? address)
     {
         if (TryGetByNodeId(nodeLogicalId, out var projection) && projection is not null)

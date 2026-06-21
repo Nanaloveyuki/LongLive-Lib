@@ -24,7 +24,13 @@ public interface ILongLiveMapOverviewCatalog
 
     IReadOnlyList<LongLiveWorldMapPageDescriptor> GetPagesForMod(string owningModId);
 
+    IReadOnlyList<LongLiveHighlightRegionDescriptor> GetRegionsForMod(string owningModId);
+
+    IReadOnlyList<LongLiveWorldNodeDescriptor> GetNodesForMod(string owningModId);
+
     IReadOnlyList<LongLiveHighlightRegionDescriptor> GetRegionsForPage(string pageId);
 
     IReadOnlyList<LongLiveWorldNodeDescriptor> GetNodesForPage(string pageId);
+
+    IReadOnlyList<LongLiveWorldNodeDescriptor> GetNodesForRegion(string regionId);
 }

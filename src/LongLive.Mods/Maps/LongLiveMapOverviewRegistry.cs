@@ -70,6 +70,7 @@ public sealed class LongLiveMapOverviewRegistry
 
             _routing.Register(new LongLiveMapOverviewRouteProjection
             {
+                OwningModId = scene.OwningModId,
                 PageId = node.PageId,
                 RegionId = scene.HighlightRegionId,
                 NodeLogicalId = node.LogicalId,

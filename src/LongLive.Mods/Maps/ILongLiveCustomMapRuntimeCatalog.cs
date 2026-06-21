@@ -13,4 +13,10 @@ public interface ILongLiveCustomMapRuntimeCatalog
     bool TryGetBySceneName(string sceneName, out LongLiveSceneDescriptor? descriptor);
 
     IReadOnlyList<LongLiveSceneDescriptor> GetScenesForMod(string owningModId);
+
+    IReadOnlyList<LongLiveSceneDescriptor> GetScenesForOverviewPageId(string pageId);
+
+    IReadOnlyList<LongLiveSceneDescriptor> GetScenesForHighlightRegionId(string regionId);
+
+    IReadOnlyList<LongLiveSceneDescriptor> GetScenesForMapKind(LongLiveMapKind mapKind);
 }
