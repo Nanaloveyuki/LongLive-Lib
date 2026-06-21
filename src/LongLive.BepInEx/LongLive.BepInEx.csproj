@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Localization\*.json" />
+    <EmbeddedResource Include="LongLiveAssets\Demo\**\*.*" />
     <EmbeddedResource Include="Plugin\Search\Resources\**\*.txt" />
   </ItemGroup>
 

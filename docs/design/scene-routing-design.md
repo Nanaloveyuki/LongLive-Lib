@@ -191,7 +191,66 @@ The current codebase now includes placeholder host feature shells for:
 - `MapOverview`
 - `CustomMapRuntime`
 
+The host now also includes explicit runtime-state observers for those two surfaces:
+
+- `LongLiveMapOverviewRuntime`
+- `LongLiveCustomMapRuntimeState`
+
+Those observers do not mutate host UI or install runtime maps yet.
+
+Their current role is to make the future injection path concrete by exposing:
+
+- current active-scene projection matches
+- current active page and region ownership
+- sampled node membership for the active overview binding
+- current active custom-runtime scene registration and bootstrap match
+- sampled bootstrap return-path summaries
+
+This keeps the next phase from jumping directly from static catalogs into heavy patching without an intermediate runtime inspection layer.
+
+The host now also builds two explicit planning objects on top of those observers:
+
+- `LongLiveMapOverviewInstallPlan`
+- `LongLiveCustomMapRuntimeActivationPlan`
+
+Those plans are still read-only in the current phase.
+
+Their purpose is to answer questions such as:
+
+- which overview pages still look base-game-shaped
+- which overview pages imply future host UI injection
+- which custom runtime targets imply future custom activation behavior
+- which return paths and entry nodes have already been resolved before runtime mutation begins
+
+This is an intentional step toward a later installer layer where `LongLive` can execute validated plans instead of letting each feature patch low-level host state ad hoc.
+
 They are still scaffolding only, but the integration seam now exists.
+
+The current host layer now also includes a separate `MapOverviewHostBindingRuntime`.
+
+That layer still does not mutate the host world-map UI, but it moves one step closer to a real installer by caching page-target-to-host binding state as its own runtime snapshot instead of recomputing ad hoc probe results everywhere.
+
+Its current role is to answer questions such as:
+
+- which page targets currently bind against `NingZhou` versus `Sea`
+- whether the expected host roots and anchors are present right now
+- which external page targets already look bindable without additional host-shell allocation
+- which targets still fail only because the current host session does not expose a usable anchor
+
+The current host layer now also includes a `MapOverviewShellAllocation` layer.
+
+That layer still does not create real page clones or tabs yet.
+
+Its current role is to classify page targets into two future execution shapes:
+
+- reuse the current host shell because the target still looks base-game-shaped
+- allocate a dedicated host shell because the target is external or host-extended
+
+This gives the later real injector a typed allocation step instead of forcing it to infer shell policy directly from raw page descriptors or one-off UI probes.
+
+The current host layer now also includes a `MapOverviewShellReservation` layer.
+
+That layer is intentionally still hidden from players. Its current role is only to reserve future shell objects by cloning and hiding base host node-root structures, so later real injectors can work against preallocated Unity objects instead of creating visible structures from scratch at the moment of activation.
 
 Those feature shells now also expose read-only catalog queries so later systems can consume registered map plans through stable lookup APIs instead of mutating internal registries directly.
 
@@ -233,6 +292,20 @@ The intended external usage path is now also explicit:
 1. build a `LongLiveMapRegistryPlan` directly, or implement an `ILongLiveSceneRouteRegistrationSource`
 2. call `LongLivePluginContext.RegisterMapRegistryPlan(...)` or `RegisterSceneRouteSource(...)`
 3. let the host distribute the plan across `SceneRouting`, `MapOverview`, and `CustomMapRuntime`
+
+The current host also now includes a built-in C# map demo.
+
+That demo exists to exercise the current API surface end to end through one real registration path:
+
+- `RegisterMapRegistryDraft(...)`
+- `RegisterSceneLocalTopologyBatch(...)`
+- overview routing projection generation
+- custom-runtime bootstrap generation
+- route-resolution dry-run
+- shell allocation and hidden shell reservation
+- planning-dump export
+
+It is intentionally not yet a fully activated visible custom page. The current goal is to validate the registration, planning, and reservation chain before the host starts exposing dedicated overview pages to players.
 
 ## 7. Recommended Next Step
 

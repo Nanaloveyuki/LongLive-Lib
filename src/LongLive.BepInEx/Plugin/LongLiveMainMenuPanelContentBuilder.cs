@@ -54,6 +54,67 @@ internal static class LongLiveMainMenuPanelContentBuilder
             FormatMuted(localizer.Get("panel.compatibility.hint")));
     }
 
+    public static string BuildDemoMapText(LongLiveTextLocalizer localizer, NextRuntimeFacade runtime, LongLiveHostOptions options)
+    {
+        var snapshot = new LongLiveMapDemoRuntimeService(LongLivePluginContext.GetLogger(), runtime).CaptureSnapshot(options);
+
+        return JoinBlocks(
+            localizer.Get("panel.demo_map.intro"),
+            BuildSection(localizer.Get("panel.section.demo_map"), new[]
+            {
+                FormatField(localizer.Get("demo_map.registration_enabled"), FormatBoolean(snapshot.RegistrationEnabled)),
+                FormatField(localizer.Get("demo_map.registered"), FormatBoolean(snapshot.Registered)),
+                FormatField(localizer.Get("demo_map.registered_in_routing"), FormatBoolean(snapshot.RegisteredOwnerModInRouting)),
+                FormatField(localizer.Get("demo_map.route_kind"), string.IsNullOrWhiteSpace(snapshot.RouteKind) ? FormatMuted(localizer.Get("common.not_reported_yet")) : FormatStatusOrCode(snapshot.RouteKind)),
+                FormatField(localizer.Get("demo_map.resolve_status"), string.IsNullOrWhiteSpace(snapshot.ResolveStatus) ? FormatMuted(localizer.Get("common.not_reported_yet")) : FormatStatusOrWrappedText(snapshot.ResolveStatus)),
+                FormatField(localizer.Get("demo_map.warp_status"), string.IsNullOrWhiteSpace(snapshot.WarpStatus) ? FormatMuted(localizer.Get("common.not_reported_yet")) : FormatStatusOrWrappedText(snapshot.WarpStatus)),
+                FormatField(localizer.Get("demo_map.overview_node_status"), string.IsNullOrWhiteSpace(snapshot.OverviewNodeStatus) ? FormatMuted(localizer.Get("common.not_reported_yet")) : FormatStatusOrWrappedText(snapshot.OverviewNodeStatus)),
+                FormatField(localizer.Get("demo_map.custom_page_status"), string.IsNullOrWhiteSpace(snapshot.CustomPageStatus) ? FormatMuted(localizer.Get("common.not_reported_yet")) : FormatStatusOrWrappedText(snapshot.CustomPageStatus)),
+                FormatField(localizer.Get("diagnostics.map_overview_custom_pages"), string.IsNullOrWhiteSpace(snapshot.CustomPageRuntimeSummary) ? FormatMuted(localizer.Get("common.not_reported_yet")) : FormatStatusOrWrappedText(snapshot.CustomPageRuntimeSummary)),
+                FormatField(localizer.Get("demo_map.planning_dump_status"), string.IsNullOrWhiteSpace(snapshot.PlanningDumpStatus) ? FormatMuted(localizer.Get("common.not_reported_yet")) : FormatStatusOrWrappedText(snapshot.PlanningDumpStatus)),
+                FormatField(localizer.Get("demo_map.plan_summary"), string.IsNullOrWhiteSpace(snapshot.PlanSummary) ? FormatMuted(localizer.Get("common.not_reported_yet")) : FormatWrappedText(snapshot.PlanSummary)),
+                FormatField(localizer.Get("demo_map.topology_summary"), string.IsNullOrWhiteSpace(snapshot.TopologySummary) ? FormatMuted(localizer.Get("common.not_reported_yet")) : FormatWrappedText(snapshot.TopologySummary)),
+                FormatField(localizer.Get("demo_map.node_summary"), string.IsNullOrWhiteSpace(snapshot.NodeSummary) ? FormatMuted(localizer.Get("common.not_reported_yet")) : FormatWrappedText(snapshot.NodeSummary)),
+            }),
+            BuildSection(localizer.Get("demo_map.identity_section"), new[]
+            {
+                FormatField(localizer.Get("demo_map.owner_mod"), FormatCode(LongLiveMapDemoConstants.OwningModId)),
+                FormatField(localizer.Get("demo_map.page_id"), FormatWrappedCsv(string.Join(", ", new[] { LongLiveMapDemoConstants.PageId, LongLiveMapDemoConstants.SecondPageId }))),
+                FormatField(localizer.Get("demo_map.region_id"), FormatWrappedCsv(string.Join(", ", new[] { LongLiveMapDemoConstants.RegionId, LongLiveMapDemoConstants.SecondRegionId }))),
+                FormatField(localizer.Get("demo_map.world_node_id"), FormatWrappedCsv(string.Join(", ", new[] { LongLiveMapDemoConstants.WorldNodeId, LongLiveMapDemoConstants.SecondWorldNodeId }))),
+                FormatField(localizer.Get("demo_map.outer_scene"), FormatCode(LongLiveMapDemoConstants.OuterSceneId + " (" + LongLiveMapDemoConstants.OuterSceneName + ")")),
+                FormatField(localizer.Get("demo_map.custom_scene"), FormatWrappedCsv(string.Join(", ", new[]
+                {
+                    LongLiveMapDemoConstants.CustomSceneId + " (" + LongLiveMapDemoConstants.CustomSceneName + ")",
+                    LongLiveMapDemoConstants.SecondCustomSceneId + " (demo placeholder: routes to " + LongLiveMapDemoConstants.CustomSceneName + ")",
+                }))),
+                FormatField(localizer.Get("demo_map.topology_id"), FormatWrappedCsv(string.Join(", ", new[] { LongLiveMapDemoConstants.TopologyId, LongLiveMapDemoConstants.SecondTopologyId }))),
+            }),
+            BuildSection(localizer.Get("demo_map.integration_section"), new[]
+            {
+                FormatField(localizer.Get("diagnostics.scene_routing_route_count"), FormatNumber(snapshot.RouteCount)),
+                FormatField(localizer.Get("diagnostics.scene_routing_projection_count"), FormatNumber(snapshot.ProjectionCount)),
+                FormatField(localizer.Get("diagnostics.scene_routing_runtime_scene_count"), FormatNumber(snapshot.RuntimeSceneCount)),
+                FormatField(localizer.Get("diagnostics.scene_routing_runtime_bootstrap_count"), FormatNumber(snapshot.RuntimeBootstrapCount)),
+                FormatField(localizer.Get("diagnostics.scene_routing_registered_mod_count"), FormatNumber(snapshot.RegisteredModCount)),
+                FormatField(localizer.Get("diagnostics.map_overview_active_projection"), FormatBoolean(snapshot.HasActiveProjection)),
+                FormatField(localizer.Get("diagnostics.custom_runtime_bootstrap_available"), FormatBoolean(snapshot.HasRuntimeBootstrap)),
+                FormatField(localizer.Get("diagnostics.map_overview_bindable_targets"), FormatNumber(snapshot.BindableTargetCount)),
+                FormatField(localizer.Get("diagnostics.map_overview_dedicated_shell_targets"), FormatNumber(snapshot.DedicatedShellCount)),
+                FormatField(localizer.Get("diagnostics.map_overview_reserved_shell_targets"), FormatNumber(snapshot.ReservedShellCount)),
+                FormatField(localizer.Get("diagnostics.map_overview_external_pages"), FormatNumber(snapshot.CustomPageTargetCount)),
+                FormatField(localizer.Get("diagnostics.map_overview_host_runtime_targets"), JoinInlineValues(
+                    FormatCode("tabs") + "=" + FormatNumber(snapshot.CustomPageTabCount),
+                    FormatCode("roots") + "=" + FormatNumber(snapshot.CustomPageRootCount),
+                    FormatCode("regions") + "=" + FormatNumber(snapshot.CustomPageRegionOverlayCount),
+                    FormatCode("nodes") + "=" + FormatNumber(snapshot.CustomPageRenderedNodeCount))),
+                FormatField(localizer.Get("demo_map.hidden_reservations"), FormatNumber(snapshot.HiddenReservationCount)),
+                FormatField(localizer.Get("diagnostics.scene_local_topology_count"), FormatNumber(snapshot.TopologyCount)),
+                FormatField(localizer.Get("diagnostics.scene_local_node_count"), FormatNumber(snapshot.TopologyNodeCount)),
+            }),
+            FormatHint(localizer.Get("panel.demo_map.hint")));
+    }
+
     public static string BuildDiagnosticsText(LongLiveTextLocalizer localizer, NextRuntimeFacade runtime, LongLiveHostOptions options)
     {
         var report = runtime.ContentInspector.Inspect();
@@ -61,7 +122,22 @@ internal static class LongLiveMainMenuPanelContentBuilder
         var snapshotService = new LongLiveMapSnapshotExportService();
         var snapshotExport = snapshotService.ExportCurrentSnapshot();
         var snapshot = snapshotService.CaptureCurrentSnapshot();
+        var mapOverviewSnapshot = LongLivePluginContext.GetMapOverviewRuntimeSnapshot();
+        var mapOverviewInstallPlan = LongLivePluginContext.GetMapOverviewInstallPlan();
+        var mapOverviewExecutionReport = LongLivePluginContext.GetMapOverviewExecutionReport();
+        var mapOverviewHostBindingRuntime = LongLivePluginContext.GetMapOverviewHostBindingRuntimeSnapshot();
+        var mapOverviewShellAllocationRuntime = LongLivePluginContext.GetMapOverviewShellAllocationRuntimeSnapshot();
+        var mapOverviewShellReservationRuntime = LongLivePluginContext.GetMapOverviewShellReservationRuntimeSnapshot();
+        var mapOverviewCustomPageRuntime = LongLivePluginContext.GetMapOverviewCustomPageRuntimeSnapshot();
+        var customRuntimeSnapshot = LongLivePluginContext.GetCustomMapRuntimeStateSnapshot();
+        var customRuntimeActivationPlan = LongLivePluginContext.GetCustomMapRuntimeActivationPlan();
+        var customRuntimeActivationRuntime = LongLivePluginContext.GetCustomMapRuntimeActivationRuntimeSnapshot();
+        var customRuntimeActivationArtifacts = LongLivePluginContext.GetCustomMapRuntimeActivationArtifactSnapshot();
+        var customRuntimeActivationExecutionPlan = LongLivePluginContext.GetCustomMapRuntimeActivationExecutionPlan();
+        var customRuntimeActivationReport = LongLivePluginContext.GetCustomMapRuntimeActivationExecutionReport();
+        var customRuntimeExecutionReport = LongLivePluginContext.GetCustomMapRuntimeExecutionReport();
         var topologySnapshot = LongLivePluginContext.GetSceneLocalTopologyRuntimeSnapshot();
+        var registrationSnapshot = LongLivePluginContext.GetSceneRoutingRegistrationSnapshot();
         var compatibility = LongLivePluginContext.GetCompatibilitySnapshot();
         var compatibilityStatus = compatibility.Activations.Count > 0
             ? string.Join(", ", compatibility.Activations.Select(static activation => activation.RedirectId + "=" + activation.StatusCode + "(" + activation.InvocationCount + ")"))
@@ -117,6 +193,59 @@ internal static class LongLiveMainMenuPanelContentBuilder
             }),
             BuildSection(localizer.Get("panel.section.maps"), new[]
             {
+                FormatField(localizer.Get("diagnostics.scene_routing_route_count"), FormatNumber(registrationSnapshot.RouteCount)),
+                FormatField(localizer.Get("diagnostics.scene_routing_projection_count"), FormatNumber(registrationSnapshot.RouteProjectionCount)),
+                FormatField(localizer.Get("diagnostics.scene_routing_runtime_scene_count"), FormatNumber(registrationSnapshot.CustomRuntimeSceneCount)),
+                FormatField(localizer.Get("diagnostics.scene_routing_runtime_bootstrap_count"), FormatNumber(registrationSnapshot.CustomRuntimeBootstrapCount)),
+                FormatField(localizer.Get("diagnostics.scene_routing_registered_mod_count"), FormatNumber(registrationSnapshot.OwningModIds.Count)),
+                FormatField(localizer.Get("diagnostics.scene_routing_active_scene_registered"), FormatBoolean(registrationSnapshot.HasActiveSceneRegistration)),
+                FormatField(localizer.Get("diagnostics.scene_routing_active_scene_logical_id"), registrationSnapshot.HasActiveSceneRegistration ? FormatCode(localizer.GetOrNa(registrationSnapshot.ActiveSceneLogicalId)) : FormatMuted(localizer.Get("common.not_reported_yet"))),
+                FormatField(localizer.Get("diagnostics.scene_routing_active_scene_mod_id"), registrationSnapshot.HasActiveSceneRegistration ? FormatCode(localizer.GetOrNa(registrationSnapshot.ActiveSceneOwningModId)) : FormatMuted(localizer.Get("common.not_reported_yet"))),
+                FormatField(localizer.Get("diagnostics.scene_routing_active_overview_page"), registrationSnapshot.HasActiveSceneRegistration ? FormatCode(localizer.GetOrNa(registrationSnapshot.ActiveOverviewPageId)) : FormatMuted(localizer.Get("common.not_reported_yet"))),
+                FormatField(localizer.Get("diagnostics.scene_routing_active_highlight_region"), registrationSnapshot.HasActiveSceneRegistration ? FormatCode(localizer.GetOrNa(registrationSnapshot.ActiveHighlightRegionId)) : FormatMuted(localizer.Get("common.not_reported_yet"))),
+                FormatField(localizer.Get("diagnostics.scene_routing_route_kinds"), registrationSnapshot.RouteKindCounts.Count > 0 ? BuildCountSummary(registrationSnapshot.RouteKindCounts) : FormatMuted(localizer.Get("common.not_reported_yet"))),
+                FormatField(localizer.Get("diagnostics.scene_routing_registered_mods"), registrationSnapshot.OwningModIds.Count > 0 ? BuildModRegistrationSummary(registrationSnapshot) : FormatMuted(localizer.Get("common.not_reported_yet"))),
+                FormatField(localizer.Get("diagnostics.map_overview_active_projection"), FormatBoolean(mapOverviewSnapshot.HasActiveProjection)),
+                FormatField(localizer.Get("diagnostics.map_overview_active_page"), mapOverviewSnapshot.HasActiveProjection ? FormatCode(localizer.GetOrNa(mapOverviewSnapshot.ActivePageId)) : FormatMuted(localizer.Get("common.not_reported_yet"))),
+                FormatField(localizer.Get("diagnostics.map_overview_active_region"), mapOverviewSnapshot.HasActiveProjection ? FormatCode(localizer.GetOrNa(mapOverviewSnapshot.ActiveRegionId)) : FormatMuted(localizer.Get("common.not_reported_yet"))),
+                FormatField(localizer.Get("diagnostics.map_overview_external_pages"), FormatNumber(mapOverviewInstallPlan.ExternalPageTargetCount)),
+                FormatField(localizer.Get("diagnostics.map_overview_external_projections"), FormatNumber(mapOverviewInstallPlan.ExternalProjectionCount)),
+                FormatField(localizer.Get("diagnostics.map_overview_bindable_targets"), FormatNumber(mapOverviewHostBindingRuntime.BindableTargetCount)),
+                FormatField(localizer.Get("diagnostics.map_overview_missing_anchor_targets"), FormatNumber(mapOverviewHostBindingRuntime.MissingAnchorTargetCount)),
+                FormatField(localizer.Get("diagnostics.map_overview_reuse_shell_targets"), FormatNumber(mapOverviewShellAllocationRuntime.ReuseExistingShellCount)),
+                FormatField(localizer.Get("diagnostics.map_overview_dedicated_shell_targets"), FormatNumber(mapOverviewShellAllocationRuntime.DedicatedShellCount)),
+                FormatField(localizer.Get("diagnostics.map_overview_reserved_shell_targets"), FormatNumber(mapOverviewShellReservationRuntime.CreatedReservationCount)),
+                FormatField(localizer.Get("diagnostics.map_overview_preflight"), FormatExecutionSummary(mapOverviewExecutionReport.SuccessCount, mapOverviewExecutionReport.FailureCount)),
+                FormatField(localizer.Get("diagnostics.map_overview_host_probe"), BuildMapOverviewProbeSummary(mapOverviewExecutionReport.HostProbe)),
+                FormatField(localizer.Get("diagnostics.map_overview_host_runtime_targets"), BuildMapOverviewHostRuntimeTargetSummary(mapOverviewHostBindingRuntime)),
+                FormatField(localizer.Get("diagnostics.map_overview_shell_runtime_targets"), BuildMapOverviewShellRuntimeTargetSummary(mapOverviewShellAllocationRuntime)),
+                FormatField(localizer.Get("diagnostics.map_overview_shell_reservation_targets"), BuildMapOverviewShellReservationSummary(mapOverviewShellReservationRuntime)),
+                FormatField(localizer.Get("diagnostics.map_overview_custom_pages"), BuildMapOverviewCustomPageSummary(mapOverviewCustomPageRuntime)),
+                FormatField(localizer.Get("diagnostics.map_overview_host_binding_samples"), BuildMapOverviewBindingSummary(mapOverviewExecutionReport)),
+                FormatField(localizer.Get("diagnostics.map_overview_active_page_nodes"), mapOverviewSnapshot.ActivePageNodeNames.Count > 0 ? FormatWrappedCsv(string.Join(", ", mapOverviewSnapshot.ActivePageNodeNames.ToArray())) : FormatMuted(localizer.Get("common.not_reported_yet"))),
+                FormatField(localizer.Get("diagnostics.map_overview_active_region_nodes"), mapOverviewSnapshot.ActiveRegionNodeNames.Count > 0 ? FormatWrappedCsv(string.Join(", ", mapOverviewSnapshot.ActiveRegionNodeNames.ToArray())) : FormatMuted(localizer.Get("common.not_reported_yet"))),
+                FormatField(localizer.Get("diagnostics.custom_runtime_scene_registered"), FormatBoolean(customRuntimeSnapshot.HasRegisteredScene)),
+                FormatField(localizer.Get("diagnostics.custom_runtime_bootstrap_available"), FormatBoolean(customRuntimeSnapshot.HasRuntimeBootstrap)),
+                FormatField(localizer.Get("diagnostics.custom_runtime_external_targets"), FormatNumber(customRuntimeActivationPlan.ExternalActivationTargetCount)),
+                FormatField(localizer.Get("diagnostics.custom_runtime_has_active_target"), FormatBoolean(customRuntimeActivationPlan.HasActiveTarget)),
+                FormatField(localizer.Get("diagnostics.custom_runtime_ready_targets"), FormatNumber(customRuntimeSnapshot.Readiness.ReadyTargetCount)),
+                FormatField(localizer.Get("diagnostics.custom_runtime_blocked_targets"), FormatNumber(customRuntimeSnapshot.Readiness.BlockedTargetCount)),
+                FormatField(localizer.Get("diagnostics.custom_runtime_activation_pending_targets"), FormatNumber(customRuntimeSnapshot.Readiness.ActivationPendingTargetCount)),
+                FormatField(localizer.Get("diagnostics.custom_runtime_activation_state"), string.IsNullOrWhiteSpace(customRuntimeActivationRuntime.ActiveActivationState) ? FormatMuted(localizer.Get("common.not_reported_yet")) : FormatStatusOrCode(customRuntimeActivationRuntime.ActiveActivationState)),
+                FormatField(localizer.Get("diagnostics.custom_runtime_activation_plan"), FormatExecutionSummary(customRuntimeActivationExecutionPlan.ExecutableStepCount, customRuntimeActivationExecutionPlan.PendingStepCount)),
+                FormatField(localizer.Get("diagnostics.custom_runtime_activation_report"), FormatExecutionSummary(customRuntimeActivationReport.SuccessCount, customRuntimeActivationReport.FailureCount)),
+                FormatField(localizer.Get("diagnostics.custom_runtime_activation_artifacts"), BuildCustomRuntimeActivationArtifactSummary(customRuntimeActivationArtifacts)),
+                FormatField(localizer.Get("diagnostics.custom_runtime_preflight"), FormatExecutionSummary(customRuntimeExecutionReport.SuccessCount, customRuntimeExecutionReport.FailureCount)),
+                FormatField(localizer.Get("diagnostics.custom_runtime_active_status"), string.IsNullOrWhiteSpace(customRuntimeSnapshot.Readiness.ActiveStatusCode) ? FormatMuted(localizer.Get("common.not_reported_yet")) : FormatStatusOrCode(customRuntimeSnapshot.Readiness.ActiveStatusCode)),
+                FormatField(localizer.Get("diagnostics.custom_runtime_active_detail"), string.IsNullOrWhiteSpace(customRuntimeSnapshot.Readiness.ActiveDetail) ? FormatMuted(localizer.Get("common.not_reported_yet")) : FormatWrappedText(customRuntimeSnapshot.Readiness.ActiveDetail)),
+                FormatField(localizer.Get("diagnostics.custom_runtime_binding_samples"), BuildCustomRuntimeBindingSummary(customRuntimeExecutionReport)),
+                FormatField(localizer.Get("diagnostics.custom_runtime_bootstrap_scene"), customRuntimeSnapshot.HasRuntimeBootstrap ? FormatCode(localizer.GetOrNa(customRuntimeSnapshot.RuntimeBootstrapSceneLogicalId)) : FormatMuted(localizer.Get("common.not_reported_yet"))),
+                FormatField(localizer.Get("diagnostics.custom_runtime_bootstrap_entry"), customRuntimeSnapshot.HasRuntimeBootstrap ? FormatCode(localizer.GetOrNa(customRuntimeSnapshot.RuntimeBootstrapEntryNodeLogicalId)) : FormatMuted(localizer.Get("common.not_reported_yet"))),
+                FormatField(localizer.Get("diagnostics.custom_runtime_bootstrap_return"), customRuntimeSnapshot.HasRuntimeBootstrap ? FormatCode(localizer.GetOrNa(customRuntimeSnapshot.RuntimeBootstrapReturnSceneName)) : FormatMuted(localizer.Get("common.not_reported_yet"))),
+                FormatField(localizer.Get("diagnostics.custom_runtime_registered_mods"), customRuntimeSnapshot.RegisteredModIds.Count > 0 ? FormatWrappedCsv(string.Join(", ", customRuntimeSnapshot.RegisteredModIds.ToArray())) : FormatMuted(localizer.Get("common.not_reported_yet"))),
+                FormatField(localizer.Get("diagnostics.custom_runtime_bootstrap_samples"), customRuntimeSnapshot.RuntimeBootstrapSamples.Count > 0 ? FormatWrappedCsv(string.Join(", ", customRuntimeSnapshot.RuntimeBootstrapSamples.ToArray())) : FormatMuted(localizer.Get("common.not_reported_yet"))),
+                FormatField(localizer.Get("diagnostics.custom_runtime_activation_samples"), BuildCustomRuntimeActivationRuntimeSummary(customRuntimeActivationRuntime)),
+                FormatField(localizer.Get("diagnostics.custom_runtime_readiness_samples"), BuildCustomRuntimeReadinessSummary(customRuntimeSnapshot.Readiness)),
                 FormatField(localizer.Get("diagnostics.map_snapshot_scenes"), FormatNumber(snapshot.Scenes.Count)),
                 FormatField(localizer.Get("diagnostics.map_snapshot_pages"), FormatNumber(snapshot.Pages.Count)),
                 FormatField(localizer.Get("diagnostics.map_snapshot_highlights"), FormatNumber(snapshot.HighlightRegions.Count)),
@@ -168,9 +297,224 @@ internal static class LongLiveMainMenuPanelContentBuilder
             FormatCode(activation.RedirectId) + "=" + FormatStatus(activation.StatusCode) + "(" + FormatNumber(activation.InvocationCount) + ")"));
     }
 
+    private static string BuildCountSummary(IReadOnlyDictionary<string, int> counts)
+    {
+        return string.Join(",\n  ", counts
+            .OrderByDescending(static pair => pair.Value)
+            .ThenBy(static pair => pair.Key, StringComparer.Ordinal)
+            .Select(static pair => FormatCode(pair.Key) + "=" + FormatNumber(pair.Value)));
+    }
+
+    private static string BuildModRegistrationSummary(LongLiveSceneRoutingRegistrationSnapshot snapshot)
+    {
+        var lines = new List<string>();
+        foreach (var modId in snapshot.OwningModIds)
+        {
+            var routeCount = GetCount(snapshot.RouteCountsByModId, modId);
+            var pageCount = GetCount(snapshot.PageCountsByModId, modId);
+            var regionCount = GetCount(snapshot.RegionCountsByModId, modId);
+            var nodeCount = GetCount(snapshot.NodeCountsByModId, modId);
+            var projectionCount = GetCount(snapshot.RouteProjectionCountsByModId, modId);
+            var runtimeSceneCount = GetCount(snapshot.RuntimeSceneCountsByModId, modId);
+            var bootstrapCount = GetCount(snapshot.RuntimeBootstrapCountsByModId, modId);
+            var topologyCount = GetCount(snapshot.TopologyCountsByModId, modId);
+            lines.Add(
+                FormatCode(modId) + ": " +
+                JoinInlineValues(
+                    FormatCode("routes") + "=" + FormatNumber(routeCount),
+                    FormatCode("pages") + "=" + FormatNumber(pageCount),
+                    FormatCode("regions") + "=" + FormatNumber(regionCount),
+                    FormatCode("nodes") + "=" + FormatNumber(nodeCount),
+                    FormatCode("projections") + "=" + FormatNumber(projectionCount),
+                    FormatCode("runtimeScenes") + "=" + FormatNumber(runtimeSceneCount),
+                    FormatCode("bootstraps") + "=" + FormatNumber(bootstrapCount),
+                    FormatCode("topologies") + "=" + FormatNumber(topologyCount)));
+        }
+
+        return string.Join(",\n  ", lines);
+    }
+
+    private static int GetCount(IReadOnlyDictionary<string, int> counts, string key)
+    {
+        return counts.TryGetValue(key, out var value) ? value : 0;
+    }
+
     private static string FormatField(string label, string value)
     {
         return $"<b>{label}</b>: {value}";
+    }
+
+    private static string FormatExecutionSummary(int successCount, int failureCount)
+    {
+        return JoinInlineValues(
+            FormatCode("success") + "=" + FormatNumber(successCount),
+            FormatCode("failure") + "=" + FormatNumber(failureCount));
+    }
+
+    private static string BuildMapOverviewProbeSummary(LongLiveMapOverviewHostProbeSnapshot probe)
+    {
+        if (!string.IsNullOrWhiteSpace(probe.ProbeError))
+        {
+            return FormatStatus(probe.ProbeError);
+        }
+
+        return JoinInlineValues(
+            FormatCode("UiMapPanel") + "=" + FormatBoolean(probe.HasUiMapPanel),
+            FormatCode("NingZhouAnchor") + "=" + FormatBoolean(probe.HasNingZhouInjectionAnchor),
+            FormatCode("SeaAnchor") + "=" + FormatBoolean(probe.HasSeaInjectionAnchor));
+    }
+
+    private static string BuildMapOverviewBindingSummary(LongLiveMapOverviewExecutionReport report)
+    {
+        if (report.Results.Count == 0)
+        {
+            return FormatMuted("n/a");
+        }
+
+        return string.Join(",\n  ", report.Results.Take(4).Select(static result =>
+            FormatCode(result.HostBinding.PageId) + "=" +
+            JoinInlineValues(
+                FormatCode("root") + "=" + FormatCode(string.IsNullOrWhiteSpace(result.HostBinding.HostRootName) ? "n/a" : result.HostBinding.HostRootName),
+                FormatCode("anchor") + "=" + FormatBoolean(result.HostBinding.HasInjectionAnchor),
+                FormatCode("nodes") + "=" + FormatNumber(result.HostBinding.NodeChildCount))));
+    }
+
+    private static string BuildMapOverviewHostRuntimeTargetSummary(LongLiveMapOverviewHostBindingRuntimeSnapshot snapshot)
+    {
+        if (snapshot.Targets.Count == 0)
+        {
+            return FormatMuted("n/a");
+        }
+
+        return string.Join(",\n  ", snapshot.Targets.Take(4).Select(static target =>
+            FormatCode(target.PageId) + "=" +
+            JoinInlineValues(
+                FormatCode("inject") + "=" + FormatBoolean(target.RequiresHostInjection),
+                FormatCode("anchor") + "=" + FormatBoolean(target.HasInjectionAnchor),
+                FormatCode("root") + "=" + FormatCode(string.IsNullOrWhiteSpace(target.HostRootName) ? "n/a" : target.HostRootName))));
+    }
+
+    private static string BuildMapOverviewShellRuntimeTargetSummary(LongLiveMapOverviewShellAllocationRuntimeSnapshot snapshot)
+    {
+        if (snapshot.Targets.Count == 0)
+        {
+            return FormatMuted("n/a");
+        }
+
+        return string.Join(",\n  ", snapshot.Targets.Take(4).Select(static target =>
+            FormatCode(target.PageId) + "=" +
+            JoinInlineValues(
+                FormatCode("shell") + "=" + FormatCode(target.ShellKind),
+                FormatCode("host") + "=" + FormatCode(target.HostSurface),
+                FormatCode("bindable") + "=" + FormatBoolean(target.CanBindInCurrentSession))));
+    }
+
+    private static string BuildMapOverviewShellReservationSummary(LongLiveMapOverviewShellReservationRuntimeSnapshot snapshot)
+    {
+        if (snapshot.Targets.Count == 0)
+        {
+            return FormatMuted("n/a");
+        }
+
+        return string.Join(",\n  ", snapshot.Targets.Take(4).Select(static target =>
+            FormatCode(target.PageId) + "=" +
+            JoinInlineValues(
+                FormatCode("status") + "=" + FormatStatus(target.StatusCode),
+                FormatCode("reserved") + "=" + FormatCode(string.IsNullOrWhiteSpace(target.ReservedObjectName) ? "n/a" : target.ReservedObjectName),
+                FormatCode("hidden") + "=" + FormatBoolean(target.ReservationHidden))));
+    }
+
+    private static string BuildMapOverviewCustomPageSummary(LongLiveMapOverviewCustomPageRuntimeSnapshot snapshot)
+    {
+        if (snapshot.CustomPageTargetCount == 0)
+        {
+            return FormatMuted("n/a");
+        }
+
+        var mountedPages = snapshot.MountedPageIds.Count == 0
+            ? FormatMuted("n/a")
+            : FormatWrappedCsv(string.Join(", ", snapshot.MountedPageIds.ToArray()));
+        var activePage = string.IsNullOrWhiteSpace(snapshot.ActivePageId)
+            ? FormatMuted("n/a")
+            : FormatCode(snapshot.ActivePageId);
+
+        return string.Join(",\n  ", new[]
+        {
+            JoinInlineValues(
+                FormatCode("panel") + "=" + FormatBoolean(snapshot.HasPanelInstance),
+                FormatCode("active") + "=" + FormatBoolean(snapshot.IsCustomPageActive),
+                FormatCode("page") + "=" + activePage),
+            JoinInlineValues(
+                FormatCode("targets") + "=" + FormatNumber(snapshot.CustomPageTargetCount),
+                FormatCode("tabs") + "=" + FormatNumber(snapshot.MountedTabButtonCount),
+                FormatCode("highlights") + "=" + FormatNumber(snapshot.MountedTabHighlightCount),
+                FormatCode("roots") + "=" + FormatNumber(snapshot.MountedPageRootCount),
+                FormatCode("nodes") + "=" + FormatNumber(snapshot.ActivePageRenderedNodeCount)),
+            FormatCode("mounted") + "=" + mountedPages,
+        });
+    }
+
+    private static string BuildCustomRuntimeBindingSummary(LongLiveCustomMapRuntimeExecutionReport report)
+    {
+        if (report.Results.Count == 0)
+        {
+            return FormatMuted("n/a");
+        }
+
+        return string.Join(",\n  ", report.Results.Take(4).Select(static result =>
+            FormatCode(result.HostBinding.SceneLogicalId) + "=" +
+            JoinInlineValues(
+                FormatCode("entry") + "=" + FormatCode(string.IsNullOrWhiteSpace(result.HostBinding.EntryRouteKind) ? "n/a" : result.HostBinding.EntryRouteKind),
+                FormatCode("return") + "=" + FormatCode(string.IsNullOrWhiteSpace(result.HostBinding.ReturnRouteKind) ? "n/a" : result.HostBinding.ReturnRouteKind),
+                FormatCode("topology") + "=" + FormatNumber(result.HostBinding.TopologyNodeCount))));
+    }
+
+    private static string BuildCustomRuntimeReadinessSummary(LongLiveCustomMapRuntimeReadinessReport report)
+    {
+        if (report.Targets.Count == 0)
+        {
+            return FormatMuted("n/a");
+        }
+
+        return string.Join(",\n  ", report.Targets.Take(4).Select(static target =>
+            FormatCode(target.SceneLogicalId) + "=" +
+            JoinInlineValues(
+                FormatCode("status") + "=" + FormatStatus(target.StatusCode),
+                FormatCode("enter") + "=" + FormatBoolean(target.CanEnterNow),
+                FormatCode("host") + "=" + FormatBoolean(target.IsHostBackedScene),
+                FormatCode("pending") + "=" + FormatBoolean(target.NeedsCustomActivationImplementation))));
+    }
+
+    private static string BuildCustomRuntimeActivationRuntimeSummary(LongLiveCustomMapRuntimeActivationRuntimeSnapshot snapshot)
+    {
+        if (snapshot.Targets.Count == 0)
+        {
+            return FormatMuted("n/a");
+        }
+
+        return string.Join(",\n  ", snapshot.Targets.Take(4).Select(static target =>
+            FormatCode(target.SceneLogicalId) + "=" +
+            JoinInlineValues(
+                FormatCode("state") + "=" + FormatStatusOrCode(target.ActivationState),
+                FormatCode("status") + "=" + FormatStatus(target.StatusCode),
+                FormatCode("enter") + "=" + FormatBoolean(target.CanEnterNow),
+                FormatCode("proxy") + "=" + FormatBoolean(target.HasBindableHostProxy),
+                FormatCode("bind") + "=" + FormatBoolean(target.CanBindProxyRoute))));
+    }
+
+    private static string BuildCustomRuntimeActivationArtifactSummary(LongLiveCustomMapRuntimeActivationArtifactSnapshot snapshot)
+    {
+        if (snapshot.Artifacts.Count == 0)
+        {
+            return FormatMuted("n/a");
+        }
+
+        return string.Join(",\n  ", snapshot.Artifacts.Take(4).Select(static artifact =>
+            FormatCode(artifact.SceneLogicalId) + "=" +
+            JoinInlineValues(
+                FormatCode("prepared") + "=" + FormatBoolean(artifact.HasPreparedHostSurface),
+                FormatCode("bound") + "=" + FormatBoolean(artifact.HasProxyRouteBinding),
+                FormatCode("status") + "=" + FormatStatus(artifact.StatusCode))));
     }
 
     private static string FormatBoolean(bool value)

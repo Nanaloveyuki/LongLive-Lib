@@ -33,6 +33,12 @@ The optional JSON-mod demo bootstrap is also explicit opt-in:
 - set `JsonModDemoPath` to a real package directory
 - optionally set `ContentBackend` to `Deferred` or `Next`
 
+There is also a built-in C# map demo enabled by default:
+
+- `EnableDemoMapRegistration`
+
+That demo registers a namespaced map draft, one overview page, one highlight region, one routing node, one runtime scene bootstrap, one scene-local topology batch, and a small set of demo command/query hooks. Its purpose is to exercise the current `MapOverview`, `CustomMapRuntime`, routing, planning-dump, and diagnostics APIs through one concrete path.
+
 There is also an optional experimental battle safety switch:
 
 - enable `EnableExperimentalBattleGuard`
@@ -80,6 +86,30 @@ There is also an optional scene-local-topology runtime log path for imported cus
 - enable `EnableSceneLocalTopologyLogging`
 - optionally enable `EnableSceneLocalTopologyVerbose`
 - keep `EnableDebugLogging` enabled
+
+There are now also two additional scene-routing-adjacent runtime log surfaces:
+
+- `EnableMapOverviewRuntimeLogging`
+- `EnableMapOverviewRuntimeVerbose`
+- `EnableCustomMapRuntimeLogging`
+- `EnableCustomMapRuntimeVerbose`
+
+These are intended to make future world-map injection and custom runtime activation easier to debug before those systems begin mutating host UI or host navigation directly.
+
+There is also an optional planning-bundle export path:
+
+- `EnableAutoExportSceneRoutingPlanningDump`
+- keep `EnableDebugLogging` enabled
+
+When active, the host exports a JSON bundle that includes registration snapshot, overview install plan, custom runtime activation plan, and both dry-run execution plans under:
+
+It also includes the current dry-run preflight reports for those execution plans, so the exported bundle records not only what the host intends to do later, but also whether the current session could already resolve the relevant host UI roots and route endpoints.
+
+The same planning bundle now also includes the `MapOverview` host-binding, shell-allocation, and shell-reservation runtime snapshots, plus the shell-allocation plan, so later map-shell work can be debugged from exported evidence instead of only from live logs.
+
+```text
+BepInEx/plugins/LongLiveExports/
+```
 
 When active, the host exports the current observed map snapshot as JSON under:
 
@@ -265,11 +295,56 @@ Current implementation limits include:
 
 The current map-facing feature shells now also expose read-only catalog query helpers so future host extensions can inspect registered pages, regions, nodes, and scenes without reaching into mutable registry internals.
 
+The host now also exposes a dedicated registration snapshot surface through:
+
+- `LongLivePluginContext.GetSceneRoutingRegistrationSnapshot()`
+
+That snapshot is intended to be the shared read model for diagnostics, future map-overview injection, and compatibility redirects. It currently summarizes:
+
+- registered route, page, region, node, projection, runtime-scene, bootstrap, and scene-local-topology counts
+- active-scene registration ownership such as route logical ID, owning mod ID, overview page ID, and highlight region ID
+- aggregated per-mod registration counts across `SceneRouting`, `MapOverview`, `CustomMapRuntime`, and `SceneLocalTopologies`
+- aggregated route-kind distribution across the current route catalog
+
 `MapOverview` now also exposes a routing projection surface so world-map nodes can be converted into typed `LongLiveSceneAddress` values without each future module rebuilding that mapping manually.
 
 That routing projection surface now also carries read-only node access metadata such as `AccessStaticValueId`, `HideOnLock`, and `AccessRuleSummary` when a registration source provides them.
 
+The host now also exposes `LongLivePluginContext.GetMapOverviewRuntimeSnapshot(...)` so diagnostics and future overview injectors can inspect the currently matched projection, active page/region ownership, and sampled node membership without rebuilding that state ad hoc.
+
+The host now also exposes `LongLivePluginContext.GetMapOverviewHostBindingRuntimeSnapshot(...)`.
+
+That runtime snapshot is the first stable host-binding read model for future overview injection work. It records which registered overview pages currently map onto `NingZhou` or `Sea`, whether the expected host roots and injection anchors are present, and how many external page targets are already bindable in the current session.
+
+The host now also exposes `LongLivePluginContext.GetMapOverviewShellAllocationPlan()` and `GetMapOverviewShellAllocationRuntimeSnapshot(...)`.
+
+That allocation layer sits between raw host binding and future real UI mutation. Its current role is to decide whether a page target still looks like a base-game-shaped page that can keep reusing an existing host shell, or whether it should be treated as a future dedicated host shell allocation target.
+
+The host now also exposes `LongLivePluginContext.GetMapOverviewShellReservationRuntimeSnapshot(...)`.
+
+That reservation layer is the first one that touches real Unity UI objects. It still does not expose new pages to players. Instead, it clones hidden placeholder shells from the current `NingZhou` or `Sea` host node roots for dedicated-shell targets that are already bindable in the current session.
+
+The host now also exposes `LongLivePluginContext.GetMapOverviewInstallPlan()`.
+
+That install plan is the first explicit host-side summary of which overview pages already match base-game shape versus which pages or projections likely need future UI injection work.
+
+The host now also exposes `LongLivePluginContext.GetMapOverviewExecutionPlan()`.
+
+That execution plan is currently a guarded dry-run shell. It does not patch host UI yet, but it expresses the future installer steps in a stable typed form and logs them during bootstrap when debug logging is enabled.
+
+The built-in map demo currently uses that same host registration path. It is intentionally conservative: it proves draft registration, overview routing projection generation, custom-runtime bootstrap generation, topology registration, route resolution, and shell reservation without forcing a player-visible custom page activation yet.
+
 `CustomMapRuntime` now also exposes a bootstrap catalog for future runtime activation planning, including entry route, return route, overview ownership, and runtime identity metadata.
+
+The host now also exposes `LongLivePluginContext.GetCustomMapRuntimeStateSnapshot(...)` so diagnostics and future runtime installers can inspect active-scene registration, matched bootstrap routes, and precomputed return-path planning before real runtime scene installation starts.
+
+The host now also exposes `LongLivePluginContext.GetCustomMapRuntimeActivationPlan()`.
+
+That activation plan is the first explicit host-side summary of which runtime bootstrap targets look like simple base-game-shaped routes and which ones imply future custom activation or custom scene-install behavior.
+
+The host now also exposes `LongLivePluginContext.GetCustomMapRuntimeExecutionPlan()`.
+
+That execution plan is currently a guarded dry-run shell. It does not install custom runtime scenes yet, but it expresses the future activation and return-flow binding steps in a stable typed form and logs them during bootstrap when debug logging is enabled.
 
 `CustomMapRuntime` now also exposes `SceneLocalTopologies`, a separate read-only catalog for scene-local node graphs that should not be confused with world-overview nodes.
 

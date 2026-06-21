@@ -13,6 +13,7 @@ internal sealed class LongLiveMainMenuPanel : IESCClose
     {
         Overview,
         Compatibility,
+        DemoMap,
         Diagnostics,
     }
 
@@ -27,6 +28,7 @@ internal sealed class LongLiveMainMenuPanel : IESCClose
     private RectTransform? _contentRect;
     private FpBtn? _overviewButton;
     private FpBtn? _compatibilityButton;
+    private FpBtn? _demoMapButton;
     private FpBtn? _diagnosticsButton;
 
     public bool IsVisible => _root is not null && _root.activeSelf;
@@ -127,6 +129,7 @@ internal sealed class LongLiveMainMenuPanel : IESCClose
         _contentRect = null;
         _overviewButton = null;
         _compatibilityButton = null;
+        _demoMapButton = null;
         _diagnosticsButton = null;
     }
 
@@ -145,7 +148,8 @@ internal sealed class LongLiveMainMenuPanel : IESCClose
         var nav = CreatePanel("Navigation", parent, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(16f, -10f), new Vector2(180f, 620f), new Color(0.16f, 0.18f, 0.22f, 1f));
         _overviewButton = CreateNavButton(nav, _localizer.Get("panel.nav.overview"), new Vector2(0f, -16f), () => ShowPage(PageKind.Overview));
         _compatibilityButton = CreateNavButton(nav, _localizer.Get("panel.nav.compatibility"), new Vector2(0f, -72f), () => ShowPage(PageKind.Compatibility));
-        _diagnosticsButton = CreateNavButton(nav, _localizer.Get("panel.nav.diagnostics"), new Vector2(0f, -128f), () => ShowPage(PageKind.Diagnostics));
+        _demoMapButton = CreateNavButton(nav, _localizer.Get("panel.nav.demo_map"), new Vector2(0f, -128f), () => ShowPage(PageKind.DemoMap));
+        _diagnosticsButton = CreateNavButton(nav, _localizer.Get("panel.nav.diagnostics"), new Vector2(0f, -184f), () => ShowPage(PageKind.Diagnostics));
     }
 
     private void CreateContent(RectTransform parent)
@@ -213,6 +217,38 @@ internal sealed class LongLiveMainMenuPanel : IESCClose
             LongLiveCompatibilitySettingsPresenter.CycleVTools(_options);
             ShowPage(PageKind.Compatibility);
         }));
+
+        var resolveDemo = CreateButton("ResolveDemoMap", footer, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-180f, 0f), new Vector2(152f, 28f), _localizer.Get("panel.action.resolve_demo_map"), 15);
+        resolveDemo.mouseUpEvent.AddListener(new UnityAction(() =>
+        {
+            var demoRuntime = new LongLiveMapDemoRuntimeService(_logger, _runtime);
+            demoRuntime.ResolveDemoRoute();
+            ShowPage(PageKind.DemoMap);
+        }));
+
+        var enterDemo = CreateButton("EnterDemoMap", footer, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-344f, 0f), new Vector2(152f, 28f), _localizer.Get("panel.action.enter_demo_map"), 15);
+        enterDemo.mouseUpEvent.AddListener(new UnityAction(() =>
+        {
+            var demoRuntime = new LongLiveMapDemoRuntimeService(_logger, _runtime);
+            demoRuntime.EnterDemoRuntime();
+            ShowPage(PageKind.DemoMap);
+        }));
+
+        var returnDemo = CreateButton("ReturnDemoMap", footer, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-180f, 0f), new Vector2(152f, 28f), _localizer.Get("panel.action.return_demo_anchor"), 15);
+        returnDemo.mouseUpEvent.AddListener(new UnityAction(() =>
+        {
+            var demoRuntime = new LongLiveMapDemoRuntimeService(_logger, _runtime);
+            demoRuntime.ReturnToAnchorScene();
+            ShowPage(PageKind.DemoMap);
+        }));
+
+        var exportPlanning = CreateButton("ExportDemoPlanning", footer, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-16f, 0f), new Vector2(152f, 28f), _localizer.Get("panel.action.export_scene_plan"), 15);
+        exportPlanning.mouseUpEvent.AddListener(new UnityAction(() =>
+        {
+            var demoRuntime = new LongLiveMapDemoRuntimeService(_logger, _runtime);
+            demoRuntime.ExportPlanningDump();
+            ShowPage(PageKind.DemoMap);
+        }));
     }
 
     private void ShowPage(PageKind page)
@@ -232,6 +268,10 @@ internal sealed class LongLiveMainMenuPanel : IESCClose
                 _titleText.text = _localizer.Get("panel.nav.compatibility");
                 _bodyText.text = LongLiveMainMenuPanelContentBuilder.BuildCompatibilityText(_localizer, _runtime, _options);
                 break;
+            case PageKind.DemoMap:
+                _titleText.text = _localizer.Get("panel.nav.demo_map");
+                _bodyText.text = LongLiveMainMenuPanelContentBuilder.BuildDemoMapText(_localizer, _runtime, _options);
+                break;
             case PageKind.Diagnostics:
                 _titleText.text = _localizer.Get("panel.nav.diagnostics");
                 _bodyText.text = LongLiveMainMenuPanelContentBuilder.BuildDiagnosticsText(_localizer, _runtime, _options);
@@ -242,6 +282,7 @@ internal sealed class LongLiveMainMenuPanel : IESCClose
 
         ApplyNavState(_overviewButton, page == PageKind.Overview);
         ApplyNavState(_compatibilityButton, page == PageKind.Compatibility);
+        ApplyNavState(_demoMapButton, page == PageKind.DemoMap);
         ApplyNavState(_diagnosticsButton, page == PageKind.Diagnostics);
     }
 
