@@ -40,7 +40,7 @@ Recommended commands:
 ./scripts/longlive.ps1 -Action host-redeploy -SkipRuntimeCheck
 ./scripts/longlive.ps1 -Action host-runtime-check
 ./scripts/longlive.ps1 -Action localtest-stage
-./scripts/longlive.ps1 -Action release-stage -Version 0.2.1
+./scripts/longlive.ps1 -Action release-stage -Version 0.2.2
 ```
 
 Use `host-redeploy -SkipRuntimeCheck` when the game has not yet been relaunched after deploy.

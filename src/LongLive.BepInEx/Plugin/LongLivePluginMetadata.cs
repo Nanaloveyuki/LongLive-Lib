@@ -6,5 +6,5 @@ public static class LongLivePluginMetadata
 
     public const string PluginName = "LongLive Lib";
 
-    public const string PluginVersion = "0.2.1";
+    public const string PluginVersion = "0.2.2";
 }

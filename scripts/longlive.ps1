@@ -7,7 +7,7 @@ param(
     [switch]$SkipNative,
     [switch]$IncludeNative,
     [switch]$DisableMissingHostReminder,
-    [string]$Version = '0.2.1'
+    [string]$Version = '0.2.2'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -72,8 +72,8 @@ function Show-Help {
     Write-Host '  ./scripts/longlive.ps1 -Action host-redeploy -Wait'
     Write-Host '  ./scripts/longlive.ps1 -Action host-runtime-check'
     Write-Host '  ./scripts/longlive.ps1 -Action localtest-stage'
-    Write-Host '  ./scripts/longlive.ps1 -Action release-stage -Version 0.2.1'
-    Write-Host '  ./scripts/longlive.ps1 -Action release-stage -Version 0.2.1 -IncludeNative'
+    Write-Host '  ./scripts/longlive.ps1 -Action release-stage -Version 0.2.2'
+    Write-Host '  ./scripts/longlive.ps1 -Action release-stage -Version 0.2.2 -IncludeNative'
 }
 
 switch ($Action) {

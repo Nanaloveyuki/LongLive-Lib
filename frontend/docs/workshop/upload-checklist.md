@@ -7,7 +7,7 @@ Use this checklist for the actual in-game workshop upload flow.
 Run:
 
 ```powershell
-./scripts/stage-workshop-release.ps1 -Configuration Debug -Version 0.2.1
+./scripts/stage-workshop-release.ps1 -Configuration Debug -Version 0.2.2
 ```
 
 Current staged upload root:
@@ -66,7 +66,7 @@ Short description direction:
 - adds the LongLive diagnostics entry
 - includes host and bridge status reporting
 - includes bulk item-use optimization
-- native core is not required for `0.2.1`
+- native core is not required for `0.2.2`
 
 Suggested description text:
 
