@@ -21,7 +21,51 @@ $bridgePackagePath = Join-Path $repoRoot $BridgePackage
 $outputDir = Join-Path $repoRoot "src\LongLive.BepInEx\bin\$Configuration\net472"
 $stageRoot = Join-Path $repoRoot (Join-Path $OutputRoot $PackageName)
 $pluginsRoot = Join-Path $stageRoot "plugins"
+$stageNativeLinkPath = Join-Path $stageRoot "longlive_native_core.dll"
 $preservedModBinBytes = $null
+
+function Resolve-NativeLibraryPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot
+    )
+
+    foreach ($candidate in @(
+        (Join-Path $RepoRoot "native\target\debug\longlive_native_core.dll"),
+        (Join-Path $RepoRoot "native\target\release\longlive_native_core.dll")
+    )) {
+        if (Test-Path $candidate) {
+            return $candidate
+        }
+    }
+
+    return $null
+}
+
+function New-NativeStageLink {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$LinkPath,
+        [Parameter(Mandatory = $true)]
+        [string]$TargetPath,
+        [Parameter(Mandatory = $true)]
+        [string]$StageRoot
+    )
+
+    if (Test-Path $LinkPath) {
+        Remove-Item -LiteralPath $LinkPath -Force
+    }
+
+    $relativeTarget = [System.IO.Path]::GetRelativePath($StageRoot, $TargetPath)
+    try {
+        New-Item -ItemType SymbolicLink -Path $LinkPath -Target $relativeTarget -Force | Out-Null
+        return 'symbolic-link'
+    }
+    catch {
+        Copy-Item -LiteralPath $TargetPath -Destination $LinkPath -Force
+        return 'copied-file'
+    }
+}
 
 function Get-LegacyModBinPath {
     param(
@@ -134,6 +178,12 @@ if ($preservedModBinBytes -eq $null) {
 
 New-Item -ItemType Directory -Force -Path $pluginsRoot | Out-Null
 
+$resolvedNativeLibraryPath = Resolve-NativeLibraryPath -RepoRoot $repoRoot
+$nativeStageMode = 'missing'
+if ($null -ne $resolvedNativeLibraryPath) {
+    $nativeStageMode = New-NativeStageLink -LinkPath $stageNativeLinkPath -TargetPath $resolvedNativeLibraryPath -StageRoot $resolvedStageRoot
+}
+
 if ($preservedModBinBytes -ne $null) {
     [System.IO.File]::WriteAllBytes((Join-Path $resolvedStageRoot "Mod.bin"), $preservedModBinBytes)
 }
@@ -172,12 +222,11 @@ if (-not $SkipAssets) {
 }
 
 if ($IncludeNative) {
-    $nativeLibraryPath = Join-Path $repoRoot "native\target\debug\longlive_native_core.dll"
-    if (-not (Test-Path $nativeLibraryPath)) {
-        throw "Native library requested but not found: $nativeLibraryPath"
+    if ($null -eq $resolvedNativeLibraryPath) {
+        throw "Native library requested but not found under native\\target\\debug or native\\target\\release."
     }
 
-    Copy-Item -LiteralPath $nativeLibraryPath -Destination (Join-Path $pluginsRoot "longlive_native_core.dll") -Force
+    Copy-Item -LiteralPath $resolvedNativeLibraryPath -Destination (Join-Path $pluginsRoot "longlive_native_core.dll") -Force
 }
 
 if (-not $SkipBridge) {
@@ -226,5 +275,7 @@ Write-Host "Upload this folder in the in-game workshop uploader (the folder that
 Write-Host "Requested version label: $Version"
 Write-Host "Bridge included: $(-not $SkipBridge)"
 Write-Host "Native included: $IncludeNative"
+Write-Host "Native stage root entry: $nativeStageMode"
+Write-Host "Native stage root path: $(if ($null -ne $resolvedNativeLibraryPath) { $stageNativeLinkPath } else { '<missing>' })"
 Write-Host "Assets included: $(-not $SkipAssets)"
 Write-Host "Mod.bin preserved: $($null -ne $preservedModBinBytes)"

@@ -5,6 +5,7 @@ using BepInEx.Logging;
 using HarmonyLib;
 using System.Reflection;
 using LongLive.BepInEx.Native;
+using LongLive.BepInEx.Plugin.Configuration;
 using LongLive.Next.Runtime;
 
 namespace LongLive.BepInEx.Plugin;
@@ -108,221 +109,332 @@ public sealed class LongLivePlugin : BaseUnityPlugin
 
     private LongLiveHostOptions CreateOptions()
     {
-        var enableDebugLogging = Config.Bind(
+        var binder = new LongLiveLocalizedConfigBinder(Config, Runtime);
+
+        var enableDebugLogging = binder.Bind(
             "LongLive",
             "EnableDebugLogging",
             false,
-            "Enable additional LongLive host bootstrap logging.");
+            "config.category.diagnostics",
+            "config.enable_debug_logging.name",
+            "config.enable_debug_logging.desc",
+            300);
 
-        var enableContentRuntimeInspection = Config.Bind(
+        var enableContentRuntimeInspection = binder.Bind(
             "LongLive",
             "EnableContentRuntimeInspection",
             false,
-            "Log a read-only inspection report of Next content runtime entry points during bootstrap.");
+            "config.category.diagnostics",
+            "config.enable_content_runtime_inspection.name",
+            "config.enable_content_runtime_inspection.desc",
+            290);
 
-        var enableNativeProbe = Config.Bind(
+        var enableNativeProbe = binder.Bind(
             "LongLive",
             "EnableNativeProbe",
             false,
-            "Attempt a native Rust-core DllImport probe during host bootstrap.");
+            "config.category.native",
+            "config.enable_native_probe.name",
+            "config.enable_native_probe.desc",
+            280);
 
-        var nativeLibraryPath = Config.Bind(
+        var nativeLibraryPath = binder.Bind(
             "LongLive",
             "NativeLibraryPath",
             string.Empty,
-            "Optional explicit path to longlive_native_core.dll used by the native probe installer.");
+            "config.category.native",
+            "config.native_library_path.name",
+            "config.native_library_path.desc",
+            270);
 
-        var enableMapTrace = Config.Bind(
+        var enableMapTrace = binder.Bind(
             "LongLive",
             "EnableMapTrace",
             false,
-            "Enable read-only Harmony map tracing for scene loads, world-map runtime state, node registration, and overview-map UI snapshots. Effective only when EnableDebugLogging is also true.");
+            "config.category.scene_routing",
+            "config.enable_map_trace.name",
+            "config.enable_map_trace.desc",
+            260);
 
-        var enableMapTraceVerbose = Config.Bind(
+        var enableMapTraceVerbose = binder.Bind(
             "LongLive",
             "EnableMapTraceVerbose",
             false,
-            "Enable additional map trace detail such as sampled node inventories and repeated structure snapshots. Effective only when both EnableDebugLogging and EnableMapTrace are true.");
+            "config.category.scene_routing",
+            "config.enable_map_trace_verbose.name",
+            "config.enable_map_trace_verbose.desc",
+            250);
 
-        var enableMapOverviewRuntimeLogging = Config.Bind(
+        var enableMapOverviewRuntimeLogging = binder.Bind(
             "LongLive",
             "EnableMapOverviewRuntimeLogging",
             false,
-            "Enable LongLive map-overview runtime summary logs for registered pages, regions, and route projections. Effective only when EnableDebugLogging is also true.");
+            "config.category.scene_routing",
+            "config.enable_map_overview_runtime_logging.name",
+            "config.enable_map_overview_runtime_logging.desc",
+            240);
 
-        var enableMapOverviewRuntimeVerbose = Config.Bind(
+        var enableMapOverviewRuntimeVerbose = binder.Bind(
             "LongLive",
             "EnableMapOverviewRuntimeVerbose",
             false,
-            "Enable additional map-overview runtime detail such as per-page and per-mod registration samples. Effective only when both EnableDebugLogging and EnableMapOverviewRuntimeLogging are true.");
+            "config.category.scene_routing",
+            "config.enable_map_overview_runtime_verbose.name",
+            "config.enable_map_overview_runtime_verbose.desc",
+            230);
 
-        var enableCustomMapRuntimeLogging = Config.Bind(
+        var enableCustomMapRuntimeLogging = binder.Bind(
             "LongLive",
             "EnableCustomMapRuntimeLogging",
             false,
-            "Enable LongLive custom-map runtime planning logs for registered runtime scenes, bootstraps, and active-scene matches. Effective only when EnableDebugLogging is also true.");
+            "config.category.scene_routing",
+            "config.enable_custom_map_runtime_logging.name",
+            "config.enable_custom_map_runtime_logging.desc",
+            220);
 
-        var enableCustomMapRuntimeVerbose = Config.Bind(
+        var enableCustomMapRuntimeVerbose = binder.Bind(
             "LongLive",
             "EnableCustomMapRuntimeVerbose",
             false,
-            "Enable additional custom-map runtime detail such as bootstrap route summaries and per-mod runtime registration samples. Effective only when both EnableDebugLogging and EnableCustomMapRuntimeLogging are true.");
+            "config.category.scene_routing",
+            "config.enable_custom_map_runtime_verbose.name",
+            "config.enable_custom_map_runtime_verbose.desc",
+            210);
 
-        var enableAutoExportSceneRoutingPlanningDump = Config.Bind(
+        var enableAutoExportSceneRoutingPlanningDump = binder.Bind(
             "LongLive",
             "EnableAutoExportSceneRoutingPlanningDump",
             false,
-            "Export the current scene-routing planning bundle as JSON during runtime installer execution. Effective only when EnableDebugLogging is also true.");
+            "config.category.scene_routing",
+            "config.enable_auto_export_scene_routing_planning_dump.name",
+            "config.enable_auto_export_scene_routing_planning_dump.desc",
+            200);
 
-        var enableSceneLocalTopologyLogging = Config.Bind(
+        var enableSceneLocalTopologyLogging = binder.Bind(
             "LongLive",
             "EnableSceneLocalTopologyLogging",
             false,
-            "Enable LongLive scene-local-topology binding logs for imported runtime node graphs such as JTools MapInfo. Effective only when EnableDebugLogging is also true.");
+            "config.category.scene_routing",
+            "config.enable_scene_local_topology_logging.name",
+            "config.enable_scene_local_topology_logging.desc",
+            190);
 
-        var enableSceneLocalTopologyVerbose = Config.Bind(
+        var enableSceneLocalTopologyVerbose = binder.Bind(
             "LongLive",
             "EnableSceneLocalTopologyVerbose",
             false,
-            "Enable additional scene-local-topology detail such as sampled node names for the active imported topology. Effective only when both EnableDebugLogging and EnableSceneLocalTopologyLogging are true.");
+            "config.category.scene_routing",
+            "config.enable_scene_local_topology_verbose.name",
+            "config.enable_scene_local_topology_verbose.desc",
+            180);
 
-        var enableAutoExportMapSnapshot = Config.Bind(
+        var enableAutoExportMapSnapshot = binder.Bind(
             "LongLive",
             "EnableAutoExportMapSnapshot",
             false,
-            "Export the current host map snapshot as JSON during runtime installer execution. Effective only when EnableDebugLogging is also true.");
+            "config.category.scene_routing",
+            "config.enable_auto_export_map_snapshot.name",
+            "config.enable_auto_export_map_snapshot.desc",
+            170);
 
-        var enableBattleTrace = Config.Bind(
+        var enableBattleTrace = binder.Bind(
             "LongLive",
             "EnableBattleTrace",
             false,
-            "Enable read-only Harmony battle tracing for fight entry, round flow, and skill usage. Effective only when EnableDebugLogging is also true.");
+            "config.category.diagnostics",
+            "config.enable_battle_trace.name",
+            "config.enable_battle_trace.desc",
+            160);
 
-        var enableBattleTraceVerbose = Config.Bind(
+        var enableBattleTraceVerbose = binder.Bind(
             "LongLive",
             "EnableBattleTraceVerbose",
             false,
-            "Enable additional battle trace detail such as runtime field inventories and method snapshots. Effective only when both EnableDebugLogging and EnableBattleTrace are true.");
+            "config.category.diagnostics",
+            "config.enable_battle_trace_verbose.name",
+            "config.enable_battle_trace_verbose.desc",
+            150);
 
-        var enableExperimentalBattleGuard = Config.Bind(
+        var enableExperimentalBattleGuard = binder.Bind(
             "LongLive",
             "EnableExperimentalBattleGuard",
             false,
-            "Enable an experimental non-player post-death battle guard that skips further Buff/Spell re-entry once a target is already dead or at HP <= 0.");
+            "config.category.gameplay",
+            "config.enable_experimental_battle_guard.name",
+            "config.enable_experimental_battle_guard.desc",
+            140);
 
-        var enableBulkItemUseOptimization = Config.Bind(
+        var enableBulkItemUseOptimization = binder.Bind(
             "LongLive",
             "EnableBulkItemUseOptimization",
             true,
-            "Enable LongLive bulk-item-use smoothing and pop-tip cleanup for large consumable batches.");
+            "config.category.gameplay",
+            "config.enable_bulk_item_use_optimization.name",
+            "config.enable_bulk_item_use_optimization.desc",
+            130);
 
-        var bulkItemUseChunkSize = Config.Bind(
+        var bulkItemUseChunkSize = binder.Bind(
             "LongLive",
             "BulkItemUseChunkSize",
             24,
-            "Maximum number of item.Use() calls processed per frame when LongLive bulk-item-use smoothing is active.");
+            "config.category.gameplay",
+            "config.bulk_item_use_chunk_size.name",
+            "config.bulk_item_use_chunk_size.desc",
+            120);
 
-        var bulkItemUseFrameBudgetMs = Config.Bind(
+        var bulkItemUseFrameBudgetMs = binder.Bind(
             "LongLive",
             "BulkItemUseFrameBudgetMs",
             3.0f,
-            "Approximate per-frame time budget in milliseconds for LongLive bulk-item-use processing.");
+            "config.category.gameplay",
+            "config.bulk_item_use_frame_budget_ms.name",
+            "config.bulk_item_use_frame_budget_ms.desc",
+            110);
 
-        var enablePopTipOptimization = Config.Bind(
+        var enablePopTipOptimization = binder.Bind(
             "LongLive",
             "EnablePopTipOptimization",
             true,
-            "Enable generic LongLive pop-tip coalescing, queue cleanup, and faster fade behavior for high-volume prompt bursts.");
+            "config.category.gameplay",
+            "config.enable_pop_tip_optimization.name",
+            "config.enable_pop_tip_optimization.desc",
+            100);
 
-        var popTipAggregationWindowMs = Config.Bind(
+        var popTipAggregationWindowMs = binder.Bind(
             "LongLive",
             "PopTipAggregationWindowMs",
             500f,
-            "Aggregation window in milliseconds for merging repeated non-critical pop-tips into a single summarized entry.");
+            "config.category.gameplay",
+            "config.pop_tip_aggregation_window_ms.name",
+            "config.pop_tip_aggregation_window_ms.desc",
+            90);
 
-        var popTipFastModeThreshold = Config.Bind(
+        var popTipFastModeThreshold = binder.Bind(
             "LongLive",
             "PopTipFastModeThreshold",
             6,
-            "When queued or active pop-tip count reaches this threshold, LongLive switches the pop-tip system into a faster cleanup mode.");
+            "config.category.gameplay",
+            "config.pop_tip_fast_mode_threshold.name",
+            "config.pop_tip_fast_mode_threshold.desc",
+            80);
 
-        var enableTuJianPinyinSearch = Config.Bind(
+        var enableTuJianPinyinSearch = binder.Bind(
             "LongLive",
             "EnableTuJianPinyinSearch",
             true,
-            "Enable LongLive pinyin-aware search fallback for the TuJian search path.");
+            "config.category.gameplay",
+            "config.enable_tujian_pinyin_search.name",
+            "config.enable_tujian_pinyin_search.desc",
+            70);
 
-        var enableFadeOptimization = Config.Bind(
+        var enableFadeOptimization = binder.Bind(
             "LongLive",
             "EnableFadeOptimization",
             true,
-            "Enable LongLive fade and transition acceleration for shared black-screen and scene-door animations.");
+            "config.category.gameplay",
+            "config.enable_fade_optimization.name",
+            "config.enable_fade_optimization.desc",
+            60);
 
-        var fadeDurationScale = Config.Bind(
+        var fadeDurationScale = binder.Bind(
             "LongLive",
             "FadeDurationScale",
             0.5f,
-            "Global scale multiplier for supported fade and transition durations. Lower values are faster.");
+            "config.category.gameplay",
+            "config.fade_duration_scale.name",
+            "config.fade_duration_scale.desc",
+            50);
 
-        var mapDoorTransitionSeconds = Config.Bind(
+        var mapDoorTransitionSeconds = binder.Bind(
             "LongLive",
             "MapDoorTransitionSeconds",
             0.35f,
-            "Override duration in seconds for supported map-door black-screen transitions before scene loads.");
+            "config.category.gameplay",
+            "config.map_door_transition_seconds.name",
+            "config.map_door_transition_seconds.desc",
+            40);
 
-        var enableEasyBatchCompatibility = Config.Bind(
+        var enableEasyBatchCompatibility = binder.Bind(
             "LongLive.Compatibility",
             "EnableEasyBatchCompatibility",
             true,
-            "Enable LongLive compatibility handling for EasyBatch item-use interception.");
+            "config.category.compatibility",
+            "config.enable_easybatch_compatibility.name",
+            "config.enable_easybatch_compatibility.desc",
+            30);
 
-        var enableWhiteZeCompatibility = Config.Bind(
+        var enableWhiteZeCompatibility = binder.Bind(
             "LongLive.Compatibility",
             "EnableWhiteZeCompatibility",
             true,
-            "Enable LongLive compatibility aliases for WhiteZe Tools routing and lightweight queries.");
+            "config.category.compatibility",
+            "config.enable_whiteze_compatibility.name",
+            "config.enable_whiteze_compatibility.desc",
+            20);
 
-        var enableVToolsCompatibility = Config.Bind(
+        var enableVToolsCompatibility = binder.Bind(
             "LongLive.Compatibility",
             "EnableVToolsCompatibility",
             true,
-            "Enable LongLive compatibility aliases for VTools routing and lightweight queries.");
+            "config.category.compatibility",
+            "config.enable_vtools_compatibility.name",
+            "config.enable_vtools_compatibility.desc",
+            10);
 
-        var enableDemoCommandRegistration = Config.Bind(
+        var enableDemoCommandRegistration = binder.Bind(
             "LongLive",
             "EnableDemoCommandRegistration",
             true,
-            "Register the demo LongLiveEcho dialog command during bootstrap.");
+            "config.category.demo",
+            "config.enable_demo_command_registration.name",
+            "config.enable_demo_command_registration.desc",
+            0);
 
-        var enableDemoQueryRegistration = Config.Bind(
+        var enableDemoQueryRegistration = binder.Bind(
             "LongLive",
             "EnableDemoQueryRegistration",
             true,
-            "Register the demo LongLiveDebugEnabled expression query during bootstrap.");
+            "config.category.demo",
+            "config.enable_demo_query_registration.name",
+            "config.enable_demo_query_registration.desc",
+            -10);
 
-        var enableDemoMapRegistration = Config.Bind(
+        var enableDemoMapRegistration = binder.Bind(
             "LongLive",
             "EnableDemoMapRegistration",
             true,
-            "Register the built-in LongLive demo map draft, topology batch, and route-resolution demo hooks during bootstrap.");
+            "config.category.demo",
+            "config.enable_demo_map_registration.name",
+            "config.enable_demo_map_registration.desc",
+            -20);
 
-        var enableJsonModDemoInstall = Config.Bind(
+        var enableJsonModDemoInstall = binder.Bind(
             "LongLive",
             "EnableJsonModDemoInstall",
             false,
-            "Load, validate, and install the configured JSON mod demo package during bootstrap.");
+            "config.category.content",
+            "config.enable_json_mod_demo_install.name",
+            "config.enable_json_mod_demo_install.desc",
+            -30);
 
-        var jsonModDemoPath = Config.Bind(
+        var jsonModDemoPath = binder.Bind(
             "LongLive",
             "JsonModDemoPath",
             string.Empty,
-            "Optional directory path of the JSON mod demo package used by the bootstrap demo installer.");
+            "config.category.content",
+            "config.json_mod_demo_path.name",
+            "config.json_mod_demo_path.desc",
+            -40);
 
-        var contentBackend = Config.Bind(
+        var contentBackend = binder.Bind(
             "LongLive",
             "ContentBackend",
             LongLiveContentBackendKind.Deferred.ToString(),
-            "Content backend selection for JSON-mod content entries. Supported values: Deferred, Next.");
+            "config.category.content",
+            "config.content_backend.name",
+            "config.content_backend.desc",
+            -50,
+            new AcceptableValueList<string>(LongLiveContentBackendKind.Deferred.ToString(), LongLiveContentBackendKind.Next.ToString()));
 
         return new LongLiveHostOptions(
             enableDebugLogging,
