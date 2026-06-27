@@ -1,6 +1,6 @@
 param(
     [string]$Configuration = "Debug",
-    [string]$Version = "0.2.2",
+    [string]$Version = "0.2.3",
     [string]$OutputRoot = "artifacts\workshop",
     [string]$PackageName = "LongLive.Lib",
     [string]$BridgePackage = "docs\samples\next-bridge-demo",
