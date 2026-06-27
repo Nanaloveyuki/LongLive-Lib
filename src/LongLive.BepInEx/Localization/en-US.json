@@ -229,6 +229,8 @@
   "config.enable_tujian_pinyin_search.desc": "Add pinyin-aware matching to the TuJian search path.",
   "config.enable_fade_optimization.name": "Enable Fade Optimization",
   "config.enable_fade_optimization.desc": "Shorten some black-screen transitions and scene changes.",
+  "config.enable_zero_time_move_npc_refresh.name": "Enable Zero-time Move NPC Refresh",
+  "config.enable_zero_time_move_npc_refresh.desc": "Refresh nearby NPC lists even when a map move consumes no time, to reduce stale NPC panels caused by high move speed or zero-time movement mods.",
   "config.fade_duration_scale.name": "Fade Duration Scale",
   "config.fade_duration_scale.desc": "Supported fade and transition durations are multiplied by this scale. Lower values are faster.",
   "config.map_door_transition_seconds.name": "Map Door Transition Seconds",

@@ -30,6 +30,7 @@ public sealed class LongLiveHostOptions
         ConfigEntry<int> popTipFastModeThreshold,
         ConfigEntry<bool> enableTuJianPinyinSearch,
         ConfigEntry<bool> enableFadeOptimization,
+        ConfigEntry<bool> enableZeroTimeMoveNpcRefresh,
         ConfigEntry<float> fadeDurationScale,
         ConfigEntry<float> mapDoorTransitionSeconds,
         ConfigEntry<bool> enableEasyBatchCompatibility,
@@ -67,6 +68,7 @@ public sealed class LongLiveHostOptions
         PopTipFastModeThreshold = popTipFastModeThreshold;
         EnableTuJianPinyinSearch = enableTuJianPinyinSearch;
         EnableFadeOptimization = enableFadeOptimization;
+        EnableZeroTimeMoveNpcRefresh = enableZeroTimeMoveNpcRefresh;
         FadeDurationScale = fadeDurationScale;
         MapDoorTransitionSeconds = mapDoorTransitionSeconds;
         EnableEasyBatchCompatibility = enableEasyBatchCompatibility;
@@ -129,6 +131,8 @@ public sealed class LongLiveHostOptions
     public ConfigEntry<bool> EnableTuJianPinyinSearch { get; }
 
     public ConfigEntry<bool> EnableFadeOptimization { get; }
+
+    public ConfigEntry<bool> EnableZeroTimeMoveNpcRefresh { get; }
 
     public ConfigEntry<float> FadeDurationScale { get; }
 

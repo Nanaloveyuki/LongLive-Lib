@@ -229,6 +229,8 @@
   "config.enable_tujian_pinyin_search.desc": "为图鉴搜索补充拼音匹配。",
   "config.enable_fade_optimization.name": "启用黑屏过渡优化",
   "config.enable_fade_optimization.desc": "缩短部分黑屏过场和场景切换时间。",
+  "config.enable_zero_time_move_npc_refresh.name": "启用 0 时间移动 NPC 刷新",
+  "config.enable_zero_time_move_npc_refresh.desc": "地图移动没有消耗时间时，仍然刷新附近 NPC 列表，减少高遁速或 0 时间移动 Mod 带来的 NPC 不更新问题。",
   "config.fade_duration_scale.name": "黑屏速度倍率",
   "config.fade_duration_scale.desc": "支持的黑屏和过渡动画会乘上这个倍率。数值越低越快。",
   "config.map_door_transition_seconds.name": "场景门黑屏时间",

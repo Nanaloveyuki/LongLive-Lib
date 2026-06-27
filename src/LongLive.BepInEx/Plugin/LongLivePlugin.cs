@@ -69,6 +69,7 @@ public sealed class LongLivePlugin : BaseUnityPlugin
                 $"bulkItemUse={Options.EnableBulkItemUseOptimization.Value}, " +
                 $"popTips={Options.EnablePopTipOptimization.Value}, " +
                 $"fade={Options.EnableFadeOptimization.Value}, " +
+                $"zeroTimeMoveNpcRefresh={Options.EnableZeroTimeMoveNpcRefresh.Value}, " +
                 $"tuJianPinyin={Options.EnableTuJianPinyinSearch.Value}, " +
                 $"debug={Options.EnableDebugLogging.Value}");
 
@@ -336,6 +337,15 @@ public sealed class LongLivePlugin : BaseUnityPlugin
             "config.enable_fade_optimization.desc",
             60);
 
+        var enableZeroTimeMoveNpcRefresh = binder.Bind(
+            "LongLive",
+            "EnableZeroTimeMoveNpcRefresh",
+            true,
+            "config.category.gameplay",
+            "config.enable_zero_time_move_npc_refresh.name",
+            "config.enable_zero_time_move_npc_refresh.desc",
+            55);
+
         var fadeDurationScale = binder.Bind(
             "LongLive",
             "FadeDurationScale",
@@ -462,6 +472,7 @@ public sealed class LongLivePlugin : BaseUnityPlugin
             popTipFastModeThreshold,
             enableTuJianPinyinSearch,
             enableFadeOptimization,
+            enableZeroTimeMoveNpcRefresh,
             fadeDurationScale,
             mapDoorTransitionSeconds,
             enableEasyBatchCompatibility,

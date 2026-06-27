@@ -42,6 +42,7 @@ public sealed class LongLiveBootstrapper
             new LongLiveMapSnapshotInstaller(_logger, _options),
             new LongLiveBattleTraceInstaller(_logger, _options),
             new LongLiveBulkItemUseInstaller(_logger, _options),
+            new LongLiveZeroTimeMoveNpcRefreshInstaller(_logger, _options),
             new LongLiveMainMenuEntryInstaller(_logger, _runtime, _options),
             new LongLiveContentInspectionInstaller(_logger, _runtime, _options),
             new LongLiveNativeProbeInstaller(_logger, _native, _options),
